@@ -13,7 +13,9 @@ import { Route as QrRouteImport } from './routes/qr'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedStudentsRouteImport } from './routes/_authenticated/students'
 import { Route as AuthenticatedRevenueRouteImport } from './routes/_authenticated/revenue'
+import { Route as AuthenticatedFacultyRouteImport } from './routes/_authenticated/faculty'
 import { Route as AuthenticatedExpensesRouteImport } from './routes/_authenticated/expenses'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAdmissionsAddTeacherRouteImport } from './routes/_authenticated/admissions/add-teacher'
@@ -38,9 +40,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedStudentsRoute = AuthenticatedStudentsRouteImport.update({
+  id: '/students',
+  path: '/students',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedRevenueRoute = AuthenticatedRevenueRouteImport.update({
   id: '/revenue',
   path: '/revenue',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedFacultyRoute = AuthenticatedFacultyRouteImport.update({
+  id: '/faculty',
+  path: '/faculty',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedExpensesRoute = AuthenticatedExpensesRouteImport.update({
@@ -72,7 +84,9 @@ export interface FileRoutesByFullPath {
   '/qr': typeof QrRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/expenses': typeof AuthenticatedExpensesRoute
+  '/faculty': typeof AuthenticatedFacultyRoute
   '/revenue': typeof AuthenticatedRevenueRoute
+  '/students': typeof AuthenticatedStudentsRoute
   '/admissions/add-student': typeof AuthenticatedAdmissionsAddStudentRoute
   '/admissions/add-teacher': typeof AuthenticatedAdmissionsAddTeacherRoute
 }
@@ -82,7 +96,9 @@ export interface FileRoutesByTo {
   '/qr': typeof QrRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/expenses': typeof AuthenticatedExpensesRoute
+  '/faculty': typeof AuthenticatedFacultyRoute
   '/revenue': typeof AuthenticatedRevenueRoute
+  '/students': typeof AuthenticatedStudentsRoute
   '/admissions/add-student': typeof AuthenticatedAdmissionsAddStudentRoute
   '/admissions/add-teacher': typeof AuthenticatedAdmissionsAddTeacherRoute
 }
@@ -94,7 +110,9 @@ export interface FileRoutesById {
   '/qr': typeof QrRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/expenses': typeof AuthenticatedExpensesRoute
+  '/_authenticated/faculty': typeof AuthenticatedFacultyRoute
   '/_authenticated/revenue': typeof AuthenticatedRevenueRoute
+  '/_authenticated/students': typeof AuthenticatedStudentsRoute
   '/_authenticated/admissions/add-student': typeof AuthenticatedAdmissionsAddStudentRoute
   '/_authenticated/admissions/add-teacher': typeof AuthenticatedAdmissionsAddTeacherRoute
 }
@@ -106,7 +124,9 @@ export interface FileRouteTypes {
     | '/qr'
     | '/dashboard'
     | '/expenses'
+    | '/faculty'
     | '/revenue'
+    | '/students'
     | '/admissions/add-student'
     | '/admissions/add-teacher'
   fileRoutesByTo: FileRoutesByTo
@@ -116,7 +136,9 @@ export interface FileRouteTypes {
     | '/qr'
     | '/dashboard'
     | '/expenses'
+    | '/faculty'
     | '/revenue'
+    | '/students'
     | '/admissions/add-student'
     | '/admissions/add-teacher'
   id:
@@ -127,7 +149,9 @@ export interface FileRouteTypes {
     | '/qr'
     | '/_authenticated/dashboard'
     | '/_authenticated/expenses'
+    | '/_authenticated/faculty'
     | '/_authenticated/revenue'
+    | '/_authenticated/students'
     | '/_authenticated/admissions/add-student'
     | '/_authenticated/admissions/add-teacher'
   fileRoutesById: FileRoutesById
@@ -169,11 +193,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/students': {
+      id: '/_authenticated/students'
+      path: '/students'
+      fullPath: '/students'
+      preLoaderRoute: typeof AuthenticatedStudentsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/revenue': {
       id: '/_authenticated/revenue'
       path: '/revenue'
       fullPath: '/revenue'
       preLoaderRoute: typeof AuthenticatedRevenueRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/faculty': {
+      id: '/_authenticated/faculty'
+      path: '/faculty'
+      fullPath: '/faculty'
+      preLoaderRoute: typeof AuthenticatedFacultyRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/expenses': {
@@ -210,7 +248,9 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedExpensesRoute: typeof AuthenticatedExpensesRoute
+  AuthenticatedFacultyRoute: typeof AuthenticatedFacultyRoute
   AuthenticatedRevenueRoute: typeof AuthenticatedRevenueRoute
+  AuthenticatedStudentsRoute: typeof AuthenticatedStudentsRoute
   AuthenticatedAdmissionsAddStudentRoute: typeof AuthenticatedAdmissionsAddStudentRoute
   AuthenticatedAdmissionsAddTeacherRoute: typeof AuthenticatedAdmissionsAddTeacherRoute
 }
@@ -218,7 +258,9 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedExpensesRoute: AuthenticatedExpensesRoute,
+  AuthenticatedFacultyRoute: AuthenticatedFacultyRoute,
   AuthenticatedRevenueRoute: AuthenticatedRevenueRoute,
+  AuthenticatedStudentsRoute: AuthenticatedStudentsRoute,
   AuthenticatedAdmissionsAddStudentRoute:
     AuthenticatedAdmissionsAddStudentRoute,
   AuthenticatedAdmissionsAddTeacherRoute:
@@ -238,3 +280,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
