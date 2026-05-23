@@ -237,7 +237,7 @@ export function StudentForm({ editId }: { editId?: string }) {
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Button>
               <Button onClick={submit}>
-                <Check className="mr-2 h-4 w-4" /> Submit Admission
+                <Check className="mr-2 h-4 w-4" /> {isEdit ? "Update Student" : "Submit Admission"}
               </Button>
             </div>
           </div>
