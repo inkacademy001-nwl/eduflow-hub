@@ -19,6 +19,7 @@ import {
   Sheet as SheetIcon,
   Calendar,
   Clock,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -88,10 +89,12 @@ function FacultyPage() {
 
 function FacultyCard({ teacher, onChange }: { teacher: Teacher; onChange: () => void }) {
   const summary = useMemo(() => attendanceSummary(teacher.id), [teacher.id]);
+  const [expanded, setExpanded] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [deductions, setDeductions] = useState<number>(teacher.pf ?? 0);
 
-  const onDelete = () => {
+  const onDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!confirm(`Delete ${teacher.fullName}?`)) return;
     deleteTeacher(teacher.id);
     toast.success("Faculty deleted");
@@ -104,100 +107,127 @@ function FacultyCard({ teacher, onChange }: { teacher: Teacher; onChange: () => 
     : (teacher.hourlyRate ?? 0) * (teacher.expectedHours ?? 0);
   const finalSalary = basic - deductions;
 
+  // Hourly stats for collapsed view
+  const expectedHours = teacher.expectedHours ?? 0;
+  const monthHours = expectedHours;
+  const weekHours = Math.round(expectedHours / 4);
+
   return (
     <div className="flex flex-col">
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:shadow-md">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="overflow-hidden rounded-2xl border border-border bg-card text-left shadow-sm transition hover:shadow-md"
+      >
         {/* Header */}
         <div className="border-b border-border bg-gradient-to-br from-accent/40 to-card p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
               {teacher.fullName.split(" ").map((n) => n[0]).slice(0, 2).join("")}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate font-semibold">{teacher.fullName}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {teacher.subjects.join(", ") || "—"} • {teacher.id}
-              </p>
+              <p className="truncate text-xs text-muted-foreground">{teacher.id}</p>
             </div>
+            {expanded ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
           </div>
         </div>
 
-        {/* Partition 1 — Attendance */}
-        <Partition label="Attendance">
-          <div className="grid grid-cols-3 gap-2 text-center">
+        {/* Collapsed mini stats */}
+        {isDaily ? (
+          <div className="grid grid-cols-3 gap-2 p-4 text-center">
             <Stat color="success" label="Present" value={summary.present} />
             <Stat color="destructive" label="Absent" value={summary.absent} />
             <Stat color="warning" label="Late" value={summary.late} />
           </div>
-          <button
-            onClick={() => setShowDetail((v) => !v)}
-            className="mt-3 inline-flex items-center text-xs font-medium text-primary hover:underline"
-          >
-            {showDetail ? "Hide details" : "Detailed Info"}
-            {showDetail ? (
-              <ChevronUp className="ml-1 h-3 w-3" />
-            ) : (
-              <ChevronDown className="ml-1 h-3 w-3" />
-            )}
-          </button>
-          {showDetail && <DetailTable facultyId={teacher.id} />}
-        </Partition>
-
-        {/* Partition 2 — Salary */}
-        <Partition label={isDaily ? "Salary Breakup" : "Hours & Salary"}>
-          {isDaily ? (
-            <div className="space-y-2 text-sm">
-              <SalaryRow label="Basic Fee" value={`₹${basic.toLocaleString("en-IN")}`} />
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Deductions</span>
-                <Input
-                  type="number"
-                  value={deductions}
-                  onChange={(e) => setDeductions(Number(e.target.value) || 0)}
-                  className="h-8 w-24 text-right"
-                />
-              </div>
-              <SalaryRow
-                label="Final Salary"
-                value={`₹${finalSalary.toLocaleString("en-IN")}`}
-                strong
-              />
-            </div>
-          ) : (
-            <div className="space-y-2 text-sm">
-              <SalaryRow label="Hours Worked" value={String(teacher.expectedHours ?? 0)} />
-              <SalaryRow label="Per Hour" value={`₹${teacher.hourlyRate ?? 0}`} />
-              <SalaryRow
-                label="Total Salary"
-                value={`₹${basic.toLocaleString("en-IN")}`}
-                strong
-              />
-            </div>
-          )}
-          <Button size="sm" className="mt-3 w-full" onClick={() => toast.success("Saved")}>
-            Save / Update
-          </Button>
-        </Partition>
-
-        {/* Partition 3 — Heatmap */}
-        <Partition label="Attendance Streak">
-          <Heatmap facultyId={teacher.id} />
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
-            <Legend color="bg-[oklch(0.65_0.18_150)]" label="Present" />
-            <Legend color="bg-[oklch(0.6_0.22_25)]" label="Absent" />
-            <Legend color="bg-[oklch(0.78_0.18_80)]" label="Late" />
-            <Legend color="bg-[oklch(0.55_0.22_260)]" label="Holiday" />
+        ) : (
+          <div className="grid grid-cols-2 gap-2 p-4 text-center">
+            <Stat color="primary" label="Hrs / Week" value={weekHours} />
+            <Stat color="primary" label="Hrs / Month" value={monthHours} />
           </div>
-        </Partition>
-      </div>
+        )}
+
+        {/* Expanded sections */}
+        {expanded && (
+          <div onClick={(e) => e.stopPropagation()}>
+            {isDaily && (
+              <Partition label="Attendance Summary">
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <Stat color="success" label="Present" value={summary.present} />
+                  <Stat color="destructive" label="Absent" value={summary.absent} />
+                  <Stat color="warning" label="Late" value={summary.late} />
+                </div>
+                <button
+                  onClick={() => setShowDetail((v) => !v)}
+                  className="mt-3 inline-flex items-center text-xs font-medium text-primary hover:underline"
+                >
+                  {showDetail ? "Hide details" : "Detailed Info"}
+                  {showDetail ? (
+                    <ChevronUp className="ml-1 h-3 w-3" />
+                  ) : (
+                    <ChevronDown className="ml-1 h-3 w-3" />
+                  )}
+                </button>
+                {showDetail && <DetailTable facultyId={teacher.id} />}
+              </Partition>
+            )}
+
+            <Partition label={isDaily ? "Salary Breakup" : "Salary Details"}>
+              {isDaily ? (
+                <div className="space-y-2 text-sm">
+                  <SalaryRow label="Basic Fee" value={`₹${basic.toLocaleString("en-IN")}`} />
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Deductions</span>
+                    <Input
+                      type="number"
+                      value={deductions}
+                      onChange={(e) => setDeductions(Number(e.target.value) || 0)}
+                      className="h-8 w-24 text-right"
+                    />
+                  </div>
+                  <SalaryRow
+                    label="Final Salary"
+                    value={`₹${finalSalary.toLocaleString("en-IN")}`}
+                    strong
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2 text-sm">
+                  <SalaryRow label="Total Hours" value={String(expectedHours)} />
+                  <SalaryRow label="Salary per Hour" value={`₹${teacher.hourlyRate ?? 0}`} />
+                  <SalaryRow
+                    label="Total Salary"
+                    value={`₹${basic.toLocaleString("en-IN")}`}
+                    strong
+                  />
+                </div>
+              )}
+              <Button size="sm" className="mt-3 w-full" onClick={() => toast.success("Saved")}>
+                Save / Update
+              </Button>
+            </Partition>
+
+            <Partition label="Attendance Calendar">
+              <Heatmap facultyId={teacher.id} />
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+                <Legend color="bg-[oklch(0.65_0.18_150)]" label="Present" />
+                <Legend color="bg-[oklch(0.6_0.22_25)]" label="Absent" />
+                <Legend color="bg-[oklch(0.78_0.18_80)]" label="Late" />
+                <Legend color="bg-[oklch(0.55_0.22_260)]" label="Holiday" />
+              </div>
+            </Partition>
+          </div>
+        )}
+      </button>
 
       {/* Outside actions */}
-      <div className="mt-3 flex items-center justify-between rounded-xl border border-border bg-card px-4 py-2.5 text-xs">
-        <span className="font-medium text-muted-foreground">
-          P {summary.present} • A {summary.absent} • L {summary.late}
-        </span>
+      <div className="mt-3 flex items-center justify-end rounded-xl border border-border bg-card px-4 py-2.5 text-xs">
         <div className="flex gap-1">
-          <Button variant="ghost" size="sm" onClick={() => toast("Update coming soon")}>
+          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); toast("Update coming soon"); }}>
             <Pencil className="mr-1 h-3.5 w-3.5" /> Update
           </Button>
           <Button
@@ -216,7 +246,7 @@ function FacultyCard({ teacher, onChange }: { teacher: Teacher; onChange: () => 
 
 function Partition({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="border-b border-border p-4 last:border-b-0">
+    <div className="border-t border-border p-4">
       <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </p>
@@ -229,7 +259,7 @@ function Stat({
   label,
   value,
 }: {
-  color: "success" | "destructive" | "warning";
+  color: "success" | "destructive" | "warning" | "primary";
   label: string;
   value: number;
 }) {
@@ -237,6 +267,7 @@ function Stat({
     success: "bg-[oklch(0.95_0.05_150)] text-[oklch(0.4_0.15_150)]",
     destructive: "bg-destructive/10 text-destructive",
     warning: "bg-[oklch(0.95_0.05_80)] text-[oklch(0.45_0.15_80)]",
+    primary: "bg-primary/10 text-primary",
   };
   return (
     <div className={cn("rounded-lg px-2 py-2", tones[color])}>
@@ -265,9 +296,8 @@ function DetailTable({ facultyId }: { facultyId: string }) {
         <thead className="sticky top-0 bg-muted/70 text-[10px] uppercase tracking-wider text-muted-foreground">
           <tr>
             <th className="px-2 py-1.5 text-left">Date</th>
-            <th className="px-2 py-1.5 text-left">In</th>
-            <th className="px-2 py-1.5 text-left">Out</th>
-            <th className="px-2 py-1.5 text-left">Status</th>
+            <th className="px-2 py-1.5 text-left">Check-in</th>
+            <th className="px-2 py-1.5 text-left">Check-out</th>
           </tr>
         </thead>
         <tbody>
@@ -279,7 +309,6 @@ function DetailTable({ facultyId }: { facultyId: string }) {
                 <td className="px-2 py-1.5">{label}</td>
                 <td className="px-2 py-1.5">{s === "present" || s === "late" ? "09:" + (s === "late" ? "32" : "02") : "—"}</td>
                 <td className="px-2 py-1.5">{s === "present" || s === "late" ? "17:05" : "—"}</td>
-                <td className="px-2 py-1.5 capitalize">{s}</td>
               </tr>
             );
           })}
@@ -297,7 +326,7 @@ function Heatmap({ facultyId }: { facultyId: string }) {
   const date = new Date(year, month, 1);
   const arr = getAttendanceFor(facultyId, date.getFullYear(), date.getMonth());
   const colors: Record<DayStatus, string> = {
-    present: "bg-[oklch(0.65_0.18_150)]",
+    present: "bg-[oklch(0.65_0.18_150)] text-white",
     absent: "bg-[oklch(0.6_0.22_25)]",
     late: "bg-[oklch(0.78_0.18_80)]",
     holiday: "bg-[oklch(0.55_0.22_260)]",
@@ -327,9 +356,16 @@ function Heatmap({ facultyId }: { facultyId: string }) {
         {arr.map((s, i) => (
           <div
             key={i}
-            className={cn("aspect-square rounded-sm", colors[s])}
+            className={cn(
+              "flex aspect-square items-center justify-center rounded-sm",
+              colors[s],
+            )}
             title={`Day ${i + 1}: ${s}`}
-          />
+          >
+            {s === "present" && <Check className="h-3 w-3" strokeWidth={3} />}
+            {s === "absent" && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+            {s === "late" && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+          </div>
         ))}
       </div>
     </div>
