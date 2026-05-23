@@ -84,7 +84,7 @@ export function TeacherForm({ editId }: { editId?: string }) {
   const submit = () => {
     if (salaryType === "daily" && !basicDaily) return toast.error("Enter basic daily pay");
     if (salaryType === "hourly" && !hourlyRate) return toast.error("Enter hourly rate");
-    addTeacher({
+    const payload = {
       fullName, dob, gender, phone, email, address,
       emergencyName, emergencyPhone,
       qualification, university, designation, subjects, classes,
@@ -97,8 +97,14 @@ export function TeacherForm({ editId }: { editId?: string }) {
       hourlyRate: hourlyRate === "" ? undefined : Number(hourlyRate),
       expectedHours: expectedHours === "" ? undefined : Number(expectedHours),
       overtimeRate: overtimeRate === "" ? undefined : Number(overtimeRate),
-    });
-    toast.success(`${fullName} added to faculty`);
+    };
+    if (isEdit && existing) {
+      updateTeacher({ ...payload, id: existing.id });
+      toast.success(`${fullName} updated`);
+    } else {
+      addTeacher(payload);
+      toast.success(`${fullName} added to faculty`);
+    }
     navigate({ to: "/faculty" });
   };
 
