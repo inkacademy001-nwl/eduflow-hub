@@ -13,13 +13,13 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, ArrowRight, Check, UserPlus, Clock, Calendar as CalendarIcon } from "lucide-react";
-import { addTeacher, getTeachers } from "@/lib/mock-data";
+import { addTeacher, getTeachers, updateTeacher } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Stepper } from "./add-student";
 
 export const Route = createFileRoute("/_authenticated/admissions/add-teacher")({
-  component: AddTeacher,
+  component: () => <TeacherForm />,
 });
 
 const DESIGNATIONS = ["Teacher", "Senior Teacher", "HOD", "Coordinator"];
