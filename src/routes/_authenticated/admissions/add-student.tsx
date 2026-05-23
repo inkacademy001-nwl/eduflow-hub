@@ -109,7 +109,7 @@ export function StudentForm({ editId }: { editId?: string }) {
           <UserPlus className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Add Student</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{isEdit ? "Edit Student" : "Add Student"}</h1>
           <p className="text-sm text-muted-foreground">Multi-step admission form.</p>
         </div>
       </div>
