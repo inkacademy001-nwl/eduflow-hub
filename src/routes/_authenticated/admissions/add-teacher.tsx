@@ -115,7 +115,7 @@ export function TeacherForm({ editId }: { editId?: string }) {
           <UserPlus className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Add Teacher</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{isEdit ? "Edit Teacher" : "Add Teacher"}</h1>
           <p className="text-sm text-muted-foreground">Profile, designation and salary structure.</p>
         </div>
       </div>
