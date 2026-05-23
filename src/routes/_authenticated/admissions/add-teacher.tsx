@@ -269,7 +269,7 @@ export function TeacherForm({ editId }: { editId?: string }) {
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Button>
               <Button onClick={submit}>
-                <Check className="mr-2 h-4 w-4" /> Submit
+                <Check className="mr-2 h-4 w-4" /> {isEdit ? "Update Faculty" : "Submit"}
               </Button>
             </div>
           </Card>
