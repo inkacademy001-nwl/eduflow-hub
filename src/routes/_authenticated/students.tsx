@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   deleteStudent,
@@ -59,6 +59,7 @@ const subjectsForClass = (cls: number): string[] => {
 };
 
 function StudentsPage() {
+  const navigate = useNavigate();
   const [, force] = useState({});
   const refresh = () => force({});
   const [search, setSearch] = useState("");
@@ -235,7 +236,9 @@ function StudentsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => toast("Edit coming soon")}
+                        onClick={() =>
+                          navigate({ to: "/admissions/edit-student/$id", params: { id: s.id } })
+                        }
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>

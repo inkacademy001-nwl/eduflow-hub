@@ -13,13 +13,13 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, ArrowRight, Check, UserPlus, Clock, Calendar as CalendarIcon } from "lucide-react";
-import { addTeacher, getTeachers } from "@/lib/mock-data";
+import { addTeacher, getTeachers, updateTeacher } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Stepper } from "./add-student";
 
 export const Route = createFileRoute("/_authenticated/admissions/add-teacher")({
-  component: AddTeacher,
+  component: () => <TeacherForm />,
 });
 
 const DESIGNATIONS = ["Teacher", "Senior Teacher", "HOD", "Coordinator"];
@@ -28,40 +28,47 @@ const ALL_SUBJECTS = [
   "Social", "Science", "Accounts", "Commerce", "Computer Science",
 ];
 
-function AddTeacher() {
+export function TeacherForm({ editId }: { editId?: string }) {
+  const existing = editId ? getTeachers().find((t) => t.id === editId) : undefined;
+  const isEdit = !!existing;
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
 
   // Section 1 — General
-  const [fullName, setFullName] = useState("");
-  const [dob, setDob] = useState("");
-  const [gender, setGender] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("");
-  const [emergencyName, setEmergencyName] = useState("");
-  const [emergencyPhone, setEmergencyPhone] = useState("");
+  const [fullName, setFullName] = useState(existing?.fullName ?? "");
+  const [dob, setDob] = useState(existing?.dob ?? "");
+  const [gender, setGender] = useState(existing?.gender ?? "");
+  const [phone, setPhone] = useState(existing?.phone ?? "");
+  const [email, setEmail] = useState(existing?.email ?? "");
+  const [address, setAddress] = useState(existing?.address ?? "");
+  const [emergencyName, setEmergencyName] = useState(existing?.emergencyName ?? "");
+  const [emergencyPhone, setEmergencyPhone] = useState(existing?.emergencyPhone ?? "");
 
   // Section 1 — Education
-  const [qualification, setQualification] = useState("");
-  const [university, setUniversity] = useState("");
-  const [designation, setDesignation] = useState("Teacher");
-  const [subjects, setSubjects] = useState<string[]>([]);
-  const [classes, setClasses] = useState<number[]>([]);
-  const [joiningDate, setJoiningDate] = useState(new Date().toISOString().slice(0, 10));
-  const [experience, setExperience] = useState<number | "">("");
+  const [qualification, setQualification] = useState(existing?.qualification ?? "");
+  const [university, setUniversity] = useState(existing?.university ?? "");
+  const [designation, setDesignation] = useState(existing?.designation ?? "Teacher");
+  const [subjects, setSubjects] = useState<string[]>(existing?.subjects ?? []);
+  const [classes, setClasses] = useState<number[]>(existing?.classes ?? []);
+  const [joiningDate, setJoiningDate] = useState(
+    existing?.joiningDate ?? new Date().toISOString().slice(0, 10),
+  );
+  const [experience, setExperience] = useState<number | "">(existing?.experience ?? "");
 
   // Section 2 — Salary
-  const [salaryType, setSalaryType] = useState<"daily" | "hourly">("daily");
-  const [basicDaily, setBasicDaily] = useState<number | "">("");
-  const [workingDays, setWorkingDays] = useState<number | "">(26);
-  const [hra, setHra] = useState<number | "">("");
-  const [pf, setPf] = useState<number | "">("");
-  const [hourlyRate, setHourlyRate] = useState<number | "">("");
-  const [expectedHours, setExpectedHours] = useState<number | "">("");
-  const [overtimeRate, setOvertimeRate] = useState<number | "">("");
+  const [salaryType, setSalaryType] = useState<"daily" | "hourly">(existing?.salaryType ?? "daily");
+  const [basicDaily, setBasicDaily] = useState<number | "">(existing?.basicDaily ?? "");
+  const [workingDays, setWorkingDays] = useState<number | "">(existing?.workingDays ?? 26);
+  const [hra, setHra] = useState<number | "">(existing?.hra ?? "");
+  const [pf, setPf] = useState<number | "">(existing?.pf ?? "");
+  const [hourlyRate, setHourlyRate] = useState<number | "">(existing?.hourlyRate ?? "");
+  const [expectedHours, setExpectedHours] = useState<number | "">(existing?.expectedHours ?? "");
+  const [overtimeRate, setOvertimeRate] = useState<number | "">(existing?.overtimeRate ?? "");
 
-  const nextId = useMemo(() => `FAC-${2000 + getTeachers().length + 1}`, []);
+  const nextId = useMemo(
+    () => existing?.id ?? `FAC-${2000 + getTeachers().length + 1}`,
+    [existing],
+  );
 
   const toggle = <T,>(setter: React.Dispatch<React.SetStateAction<T[]>>, value: T) =>
     setter((arr) => (arr.includes(value) ? arr.filter((x) => x !== value) : [...arr, value]));
@@ -77,7 +84,7 @@ function AddTeacher() {
   const submit = () => {
     if (salaryType === "daily" && !basicDaily) return toast.error("Enter basic daily pay");
     if (salaryType === "hourly" && !hourlyRate) return toast.error("Enter hourly rate");
-    addTeacher({
+    const payload = {
       fullName, dob, gender, phone, email, address,
       emergencyName, emergencyPhone,
       qualification, university, designation, subjects, classes,
@@ -90,8 +97,14 @@ function AddTeacher() {
       hourlyRate: hourlyRate === "" ? undefined : Number(hourlyRate),
       expectedHours: expectedHours === "" ? undefined : Number(expectedHours),
       overtimeRate: overtimeRate === "" ? undefined : Number(overtimeRate),
-    });
-    toast.success(`${fullName} added to faculty`);
+    };
+    if (isEdit && existing) {
+      updateTeacher({ ...payload, id: existing.id });
+      toast.success(`${fullName} updated`);
+    } else {
+      addTeacher(payload);
+      toast.success(`${fullName} added to faculty`);
+    }
     navigate({ to: "/faculty" });
   };
 
@@ -102,7 +115,7 @@ function AddTeacher() {
           <UserPlus className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Add Teacher</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{isEdit ? "Edit Teacher" : "Add Teacher"}</h1>
           <p className="text-sm text-muted-foreground">Profile, designation and salary structure.</p>
         </div>
       </div>
@@ -256,7 +269,7 @@ function AddTeacher() {
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Button>
               <Button onClick={submit}>
-                <Check className="mr-2 h-4 w-4" /> Submit
+                <Check className="mr-2 h-4 w-4" /> {isEdit ? "Update Faculty" : "Submit"}
               </Button>
             </div>
           </Card>

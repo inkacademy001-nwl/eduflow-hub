@@ -13,12 +13,12 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, ArrowRight, Check, UserPlus } from "lucide-react";
-import { addStudent, getStudents } from "@/lib/mock-data";
+import { addStudent, getStudents, updateStudent } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admissions/add-student")({
-  component: AddStudent,
+  component: () => <StudentForm />,
 });
 
 const BOARDS = ["CBSE", "State Board", "ICSE", "Other"];
@@ -35,31 +35,37 @@ function streamsForClass(cls: number): string[] {
   return [];
 }
 
-function AddStudent() {
+export function StudentForm({ editId }: { editId?: string }) {
+  const existing = editId ? getStudents().find((s) => s.id === editId) : undefined;
+  const isEdit = !!existing;
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   // Section 1
-  const [fullName, setFullName] = useState("");
-  const [dob, setDob] = useState("");
-  const [gender, setGender] = useState("");
-  const [primaryPhone, setPrimaryPhone] = useState("");
-  const [secondaryPhone, setSecondaryPhone] = useState("");
-  const [parentName, setParentName] = useState("");
-  const [parentPhone, setParentPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [fullName, setFullName] = useState(existing?.fullName ?? "");
+  const [dob, setDob] = useState(existing?.dob ?? "");
+  const [gender, setGender] = useState(existing?.gender ?? "");
+  const [primaryPhone, setPrimaryPhone] = useState(existing?.primaryPhone ?? "");
+  const [secondaryPhone, setSecondaryPhone] = useState(existing?.secondaryPhone ?? "");
+  const [parentName, setParentName] = useState(existing?.parentName ?? "");
+  const [parentPhone, setParentPhone] = useState(existing?.parentPhone ?? "");
+  const [address, setAddress] = useState(existing?.address ?? "");
   // Section 2
-  const [cls, setCls] = useState<number | "">("");
-  const [board, setBoard] = useState("");
-  const [stream, setStream] = useState("");
-  const [subjects, setSubjects] = useState<string[]>([]);
-  const [previousSchool, setPreviousSchool] = useState("");
+  const [cls, setCls] = useState<number | "">(existing?.class ?? "");
+  const [board, setBoard] = useState(existing?.board ?? "");
+  const [stream, setStream] = useState(existing?.stream ?? "");
+  const [subjects, setSubjects] = useState<string[]>(existing?.subjects ?? []);
+  const [previousSchool, setPreviousSchool] = useState(existing?.previousSchool ?? "");
   const [academicYear, setAcademicYear] = useState(
-    `${new Date().getFullYear()}-${String((new Date().getFullYear() + 1) % 100).padStart(2, "0")}`,
+    existing?.academicYear ??
+      `${new Date().getFullYear()}-${String((new Date().getFullYear() + 1) % 100).padStart(2, "0")}`,
   );
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(existing?.notes ?? "");
 
-  const nextId = useMemo(() => `STU-${1000 + getStudents().length + 1}`, []);
-  const today = new Date().toISOString().slice(0, 10);
+  const nextId = useMemo(
+    () => existing?.id ?? `STU-${1000 + getStudents().length + 1}`,
+    [existing],
+  );
+  const today = existing?.admissionDate ?? new Date().toISOString().slice(0, 10);
 
   const toggleSubject = (s: string) => {
     setSubjects((arr) => (arr.includes(s) ? arr.filter((x) => x !== s) : [...arr, s]));
@@ -78,27 +84,23 @@ function AddStudent() {
       toast.error("Class, board and subjects are required");
       return;
     }
-    addStudent({
-      fullName,
-      dob,
-      gender,
-      primaryPhone,
-      secondaryPhone,
-      parentName,
-      parentPhone,
-      address,
-      class: Number(cls),
-      board,
-      stream,
-      subjects,
-      previousSchool,
-      academicYear,
-      admissionDate: today,
-      notes,
-    });
-    toast.success(`Student ${fullName} admitted`);
+    const payload = {
+      fullName, dob, gender, primaryPhone, secondaryPhone,
+      parentName, parentPhone, address,
+      class: Number(cls), board, stream, subjects, previousSchool,
+      academicYear, admissionDate: today, notes,
+    };
+    if (isEdit && existing) {
+      updateStudent({ ...payload, id: existing.id });
+      toast.success(`Student ${fullName} updated`);
+    } else {
+      addStudent(payload);
+      toast.success(`Student ${fullName} admitted`);
+    }
     navigate({ to: "/students" });
   };
+
+
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8">
@@ -107,7 +109,7 @@ function AddStudent() {
           <UserPlus className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Add Student</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{isEdit ? "Edit Student" : "Add Student"}</h1>
           <p className="text-sm text-muted-foreground">Multi-step admission form.</p>
         </div>
       </div>
@@ -235,7 +237,7 @@ function AddStudent() {
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Button>
               <Button onClick={submit}>
-                <Check className="mr-2 h-4 w-4" /> Submit Admission
+                <Check className="mr-2 h-4 w-4" /> {isEdit ? "Update Student" : "Submit Admission"}
               </Button>
             </div>
           </div>
