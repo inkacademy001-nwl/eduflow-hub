@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   attendanceSummary,
@@ -88,6 +88,7 @@ function FacultyPage() {
 }
 
 function FacultyCard({ teacher, onChange }: { teacher: Teacher; onChange: () => void }) {
+  const navigate = useNavigate();
   const summary = useMemo(() => attendanceSummary(teacher.id), [teacher.id]);
   const [expanded, setExpanded] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -227,7 +228,14 @@ function FacultyCard({ teacher, onChange }: { teacher: Teacher; onChange: () => 
       {/* Outside actions */}
       <div className="mt-3 flex items-center justify-end rounded-xl border border-border bg-card px-4 py-2.5 text-xs">
         <div className="flex gap-1">
-          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); toast("Update coming soon"); }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate({ to: "/admissions/edit-teacher/$id", params: { id: teacher.id } });
+            }}
+          >
             <Pencil className="mr-1 h-3.5 w-3.5" /> Update
           </Button>
           <Button
