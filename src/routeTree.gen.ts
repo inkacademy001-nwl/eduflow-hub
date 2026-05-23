@@ -19,7 +19,6 @@ import { Route as AuthenticatedFacultyRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedExpensesRouteImport } from './routes/_authenticated/expenses'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAdmissionsAddTeacherRouteImport } from './routes/_authenticated/admissions/add-teacher'
-import { Route as AuthenticatedAdmissionsAddStudentRouteImport } from './routes/_authenticated/admissions/add-student'
 
 const QrRoute = QrRouteImport.update({
   id: '/qr',
@@ -71,12 +70,6 @@ const AuthenticatedAdmissionsAddTeacherRoute =
     path: '/admissions/add-teacher',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedAdmissionsAddStudentRoute =
-  AuthenticatedAdmissionsAddStudentRouteImport.update({
-    id: '/admissions/add-student',
-    path: '/admissions/add-student',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -87,7 +80,6 @@ export interface FileRoutesByFullPath {
   '/faculty': typeof AuthenticatedFacultyRoute
   '/revenue': typeof AuthenticatedRevenueRoute
   '/students': typeof AuthenticatedStudentsRoute
-  '/admissions/add-student': typeof AuthenticatedAdmissionsAddStudentRoute
   '/admissions/add-teacher': typeof AuthenticatedAdmissionsAddTeacherRoute
 }
 export interface FileRoutesByTo {
@@ -99,7 +91,6 @@ export interface FileRoutesByTo {
   '/faculty': typeof AuthenticatedFacultyRoute
   '/revenue': typeof AuthenticatedRevenueRoute
   '/students': typeof AuthenticatedStudentsRoute
-  '/admissions/add-student': typeof AuthenticatedAdmissionsAddStudentRoute
   '/admissions/add-teacher': typeof AuthenticatedAdmissionsAddTeacherRoute
 }
 export interface FileRoutesById {
@@ -113,7 +104,6 @@ export interface FileRoutesById {
   '/_authenticated/faculty': typeof AuthenticatedFacultyRoute
   '/_authenticated/revenue': typeof AuthenticatedRevenueRoute
   '/_authenticated/students': typeof AuthenticatedStudentsRoute
-  '/_authenticated/admissions/add-student': typeof AuthenticatedAdmissionsAddStudentRoute
   '/_authenticated/admissions/add-teacher': typeof AuthenticatedAdmissionsAddTeacherRoute
 }
 export interface FileRouteTypes {
@@ -127,7 +117,6 @@ export interface FileRouteTypes {
     | '/faculty'
     | '/revenue'
     | '/students'
-    | '/admissions/add-student'
     | '/admissions/add-teacher'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -139,7 +128,6 @@ export interface FileRouteTypes {
     | '/faculty'
     | '/revenue'
     | '/students'
-    | '/admissions/add-student'
     | '/admissions/add-teacher'
   id:
     | '__root__'
@@ -152,7 +140,6 @@ export interface FileRouteTypes {
     | '/_authenticated/faculty'
     | '/_authenticated/revenue'
     | '/_authenticated/students'
-    | '/_authenticated/admissions/add-student'
     | '/_authenticated/admissions/add-teacher'
   fileRoutesById: FileRoutesById
 }
@@ -235,13 +222,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdmissionsAddTeacherRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/admissions/add-student': {
-      id: '/_authenticated/admissions/add-student'
-      path: '/admissions/add-student'
-      fullPath: '/admissions/add-student'
-      preLoaderRoute: typeof AuthenticatedAdmissionsAddStudentRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
   }
 }
 
@@ -251,7 +231,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedFacultyRoute: typeof AuthenticatedFacultyRoute
   AuthenticatedRevenueRoute: typeof AuthenticatedRevenueRoute
   AuthenticatedStudentsRoute: typeof AuthenticatedStudentsRoute
-  AuthenticatedAdmissionsAddStudentRoute: typeof AuthenticatedAdmissionsAddStudentRoute
   AuthenticatedAdmissionsAddTeacherRoute: typeof AuthenticatedAdmissionsAddTeacherRoute
 }
 
@@ -261,8 +240,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedFacultyRoute: AuthenticatedFacultyRoute,
   AuthenticatedRevenueRoute: AuthenticatedRevenueRoute,
   AuthenticatedStudentsRoute: AuthenticatedStudentsRoute,
-  AuthenticatedAdmissionsAddStudentRoute:
-    AuthenticatedAdmissionsAddStudentRoute,
   AuthenticatedAdmissionsAddTeacherRoute:
     AuthenticatedAdmissionsAddTeacherRoute,
 }

@@ -17,6 +17,18 @@ import { addStudent, getStudents, updateStudent } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+export const Route = createFileRoute("/_authenticated/admissions/add-student")({
+  component: () => <StudentForm />,
+});
+
+function AddStudent() {
+  return <StudentForm />;
+}
+
+export function StudentForm({ editId }: { editId?: string }) {
+  const existing = editId ? getStudents().find((s) => s.id === editId) : undefined;
+  const isEdit = !!existing;
+
 const BOARDS = ["CBSE", "State Board", "ICSE", "Other"];
 
 function subjectsForClass(cls: number): string[] {
