@@ -220,6 +220,12 @@ export function addTeacher(t: Omit<Teacher, "id">): Teacher {
   save(TEACHER_KEY, [created, ...list]);
   return created;
 }
+export function updateTeacher(t: Teacher) {
+  save(
+    TEACHER_KEY,
+    getTeachers().map((x) => (x.id === t.id ? t : x)),
+  );
+}
 export function deleteTeacher(id: string) {
   save(
     TEACHER_KEY,
