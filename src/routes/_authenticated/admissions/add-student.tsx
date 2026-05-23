@@ -13,13 +13,9 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, ArrowRight, Check, UserPlus } from "lucide-react";
-import { addStudent, getStudents } from "@/lib/mock-data";
+import { addStudent, getStudents, updateStudent } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-export const Route = createFileRoute("/_authenticated/admissions/add-student")({
-  component: AddStudent,
-});
 
 const BOARDS = ["CBSE", "State Board", "ICSE", "Other"];
 
