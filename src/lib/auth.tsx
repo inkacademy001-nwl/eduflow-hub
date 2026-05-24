@@ -1,10 +1,11 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-export type Role = "Owner" | "Coordinator";
+export type Role = "Owner" | "Coordinator" | "Faculty";
 export interface AuthUser {
   name: string;
   email: string;
   role: Role;
+  facultyId?: string;
 }
 
 interface AuthContextValue {
@@ -35,7 +36,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn: AuthContextValue["signIn"] = async (email) => {
     // Mock auth — accept any non-empty creds
-    const role: Role = email.toLowerCase().includes("owner") ? "Owner" : "Coordinator";
+    const lc = email.toLowerCase();
+    if (lc.includes("faculty")) {
+      const u: AuthUser = { name: "Priya Menon", email, role: "Faculty", facultyId: "FAC-2001" };
+      persist(u);
+      return u;
+    }
+    const role: Role = lc.includes("owner") ? "Owner" : "Coordinator";
     const u: AuthUser = { name: email.split("@")[0] || "User", email, role };
     persist(u);
     return u;

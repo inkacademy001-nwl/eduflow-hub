@@ -309,3 +309,68 @@ export function attendanceSummary(facultyId: string) {
     late: arr.filter((x) => x === "late").length,
   };
 }
+
+// Faculty self-lookup
+export function getTeacherById(id: string): Teacher | undefined {
+  return getTeachers().find((t) => t.id === id);
+}
+
+// Salary summary for faculty dashboard
+export interface SalarySummary {
+  basicPay: number;
+  bonus: number;
+  deductions: number;
+  netSalary: number;
+  payType: "daily" | "hourly";
+  // daily fields
+  dailyRate?: number;
+  workingDays?: number;
+  hra?: number;
+  pf?: number;
+  // hourly fields
+  hourlyRate?: number;
+  totalHours?: number;
+  overtimeRate?: number;
+}
+
+export function getFacultySalarySummary(teacher: Teacher): SalarySummary {
+  if (teacher.salaryType === "daily") {
+    const dailyRate = teacher.basicDaily ?? 0;
+    const workingDays = teacher.workingDays ?? 0;
+    const hra = teacher.hra ?? 0;
+    const pf = teacher.pf ?? 0;
+    const basicPay = dailyRate * workingDays + hra;
+    const deductions = pf;
+    const bonus = 0;
+    const netSalary = basicPay + bonus - deductions;
+    return {
+      basicPay,
+      bonus,
+      deductions,
+      netSalary,
+      payType: "daily",
+      dailyRate,
+      workingDays,
+      hra,
+      pf,
+    };
+  } else {
+    const hourlyRate = teacher.hourlyRate ?? 0;
+    const totalHours = teacher.expectedHours ?? 0;
+    const overtimeRate = teacher.overtimeRate ?? 0;
+    const basicPay = hourlyRate * totalHours;
+    const deductions = 0;
+    const bonus = 0;
+    const netSalary = basicPay + bonus - deductions;
+    return {
+      basicPay,
+      bonus,
+      deductions,
+      netSalary,
+      payType: "hourly",
+      hourlyRate,
+      totalHours,
+      overtimeRate,
+    };
+  }
+}

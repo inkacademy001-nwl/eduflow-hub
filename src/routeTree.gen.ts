@@ -11,8 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as QrRouteImport } from './routes/qr'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as FacultyRouteImport } from './routes/_faculty'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as FacultySalaryRouteImport } from './routes/_faculty/salary'
+import { Route as FacultyPayslipRouteImport } from './routes/_faculty/payslip'
+import { Route as FacultyBreakdownRouteImport } from './routes/_faculty/breakdown'
+import { Route as FacultyAttendanceRouteImport } from './routes/_faculty/attendance'
 import { Route as AuthenticatedStudentsRouteImport } from './routes/_authenticated/students'
 import { Route as AuthenticatedRevenueRouteImport } from './routes/_authenticated/revenue'
 import { Route as AuthenticatedFacultyRouteImport } from './routes/_authenticated/faculty'
@@ -33,6 +38,10 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FacultyRoute = FacultyRouteImport.update({
+  id: '/_faculty',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
@@ -41,6 +50,26 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const FacultySalaryRoute = FacultySalaryRouteImport.update({
+  id: '/salary',
+  path: '/salary',
+  getParentRoute: () => FacultyRoute,
+} as any)
+const FacultyPayslipRoute = FacultyPayslipRouteImport.update({
+  id: '/payslip',
+  path: '/payslip',
+  getParentRoute: () => FacultyRoute,
+} as any)
+const FacultyBreakdownRoute = FacultyBreakdownRouteImport.update({
+  id: '/breakdown',
+  path: '/breakdown',
+  getParentRoute: () => FacultyRoute,
+} as any)
+const FacultyAttendanceRoute = FacultyAttendanceRouteImport.update({
+  id: '/attendance',
+  path: '/attendance',
+  getParentRoute: () => FacultyRoute,
 } as any)
 const AuthenticatedStudentsRoute = AuthenticatedStudentsRouteImport.update({
   id: '/students',
@@ -101,6 +130,10 @@ export interface FileRoutesByFullPath {
   '/faculty': typeof AuthenticatedFacultyRoute
   '/revenue': typeof AuthenticatedRevenueRoute
   '/students': typeof AuthenticatedStudentsRoute
+  '/attendance': typeof FacultyAttendanceRoute
+  '/breakdown': typeof FacultyBreakdownRoute
+  '/payslip': typeof FacultyPayslipRoute
+  '/salary': typeof FacultySalaryRoute
   '/admissions/add-student': typeof AuthenticatedAdmissionsAddStudentRoute
   '/admissions/add-teacher': typeof AuthenticatedAdmissionsAddTeacherRoute
   '/admissions/edit-student/$id': typeof AuthenticatedAdmissionsEditStudentIdRoute
@@ -115,6 +148,10 @@ export interface FileRoutesByTo {
   '/faculty': typeof AuthenticatedFacultyRoute
   '/revenue': typeof AuthenticatedRevenueRoute
   '/students': typeof AuthenticatedStudentsRoute
+  '/attendance': typeof FacultyAttendanceRoute
+  '/breakdown': typeof FacultyBreakdownRoute
+  '/payslip': typeof FacultyPayslipRoute
+  '/salary': typeof FacultySalaryRoute
   '/admissions/add-student': typeof AuthenticatedAdmissionsAddStudentRoute
   '/admissions/add-teacher': typeof AuthenticatedAdmissionsAddTeacherRoute
   '/admissions/edit-student/$id': typeof AuthenticatedAdmissionsEditStudentIdRoute
@@ -124,6 +161,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/_faculty': typeof FacultyRouteWithChildren
   '/auth': typeof AuthRoute
   '/qr': typeof QrRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -131,6 +169,10 @@ export interface FileRoutesById {
   '/_authenticated/faculty': typeof AuthenticatedFacultyRoute
   '/_authenticated/revenue': typeof AuthenticatedRevenueRoute
   '/_authenticated/students': typeof AuthenticatedStudentsRoute
+  '/_faculty/attendance': typeof FacultyAttendanceRoute
+  '/_faculty/breakdown': typeof FacultyBreakdownRoute
+  '/_faculty/payslip': typeof FacultyPayslipRoute
+  '/_faculty/salary': typeof FacultySalaryRoute
   '/_authenticated/admissions/add-student': typeof AuthenticatedAdmissionsAddStudentRoute
   '/_authenticated/admissions/add-teacher': typeof AuthenticatedAdmissionsAddTeacherRoute
   '/_authenticated/admissions/edit-student/$id': typeof AuthenticatedAdmissionsEditStudentIdRoute
@@ -147,6 +189,10 @@ export interface FileRouteTypes {
     | '/faculty'
     | '/revenue'
     | '/students'
+    | '/attendance'
+    | '/breakdown'
+    | '/payslip'
+    | '/salary'
     | '/admissions/add-student'
     | '/admissions/add-teacher'
     | '/admissions/edit-student/$id'
@@ -161,6 +207,10 @@ export interface FileRouteTypes {
     | '/faculty'
     | '/revenue'
     | '/students'
+    | '/attendance'
+    | '/breakdown'
+    | '/payslip'
+    | '/salary'
     | '/admissions/add-student'
     | '/admissions/add-teacher'
     | '/admissions/edit-student/$id'
@@ -169,6 +219,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/_faculty'
     | '/auth'
     | '/qr'
     | '/_authenticated/dashboard'
@@ -176,6 +227,10 @@ export interface FileRouteTypes {
     | '/_authenticated/faculty'
     | '/_authenticated/revenue'
     | '/_authenticated/students'
+    | '/_faculty/attendance'
+    | '/_faculty/breakdown'
+    | '/_faculty/payslip'
+    | '/_faculty/salary'
     | '/_authenticated/admissions/add-student'
     | '/_authenticated/admissions/add-teacher'
     | '/_authenticated/admissions/edit-student/$id'
@@ -185,6 +240,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  FacultyRoute: typeof FacultyRouteWithChildren
   AuthRoute: typeof AuthRoute
   QrRoute: typeof QrRoute
 }
@@ -205,6 +261,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_faculty': {
+      id: '/_faculty'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof FacultyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
@@ -218,6 +281,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_faculty/salary': {
+      id: '/_faculty/salary'
+      path: '/salary'
+      fullPath: '/salary'
+      preLoaderRoute: typeof FacultySalaryRouteImport
+      parentRoute: typeof FacultyRoute
+    }
+    '/_faculty/payslip': {
+      id: '/_faculty/payslip'
+      path: '/payslip'
+      fullPath: '/payslip'
+      preLoaderRoute: typeof FacultyPayslipRouteImport
+      parentRoute: typeof FacultyRoute
+    }
+    '/_faculty/breakdown': {
+      id: '/_faculty/breakdown'
+      path: '/breakdown'
+      fullPath: '/breakdown'
+      preLoaderRoute: typeof FacultyBreakdownRouteImport
+      parentRoute: typeof FacultyRoute
+    }
+    '/_faculty/attendance': {
+      id: '/_faculty/attendance'
+      path: '/attendance'
+      fullPath: '/attendance'
+      preLoaderRoute: typeof FacultyAttendanceRouteImport
+      parentRoute: typeof FacultyRoute
     }
     '/_authenticated/students': {
       id: '/_authenticated/students'
@@ -317,9 +408,27 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface FacultyRouteChildren {
+  FacultyAttendanceRoute: typeof FacultyAttendanceRoute
+  FacultyBreakdownRoute: typeof FacultyBreakdownRoute
+  FacultyPayslipRoute: typeof FacultyPayslipRoute
+  FacultySalaryRoute: typeof FacultySalaryRoute
+}
+
+const FacultyRouteChildren: FacultyRouteChildren = {
+  FacultyAttendanceRoute: FacultyAttendanceRoute,
+  FacultyBreakdownRoute: FacultyBreakdownRoute,
+  FacultyPayslipRoute: FacultyPayslipRoute,
+  FacultySalaryRoute: FacultySalaryRoute,
+}
+
+const FacultyRouteWithChildren =
+  FacultyRoute._addFileChildren(FacultyRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  FacultyRoute: FacultyRouteWithChildren,
   AuthRoute: AuthRoute,
   QrRoute: QrRoute,
 }

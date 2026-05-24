@@ -36,6 +36,7 @@ function AuthPage() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [facultyLoading, setFacultyLoading] = useState(false);
 
   const onGoogleSignIn = async () => {
     setLoading(true);
@@ -48,6 +49,19 @@ function AuthPage() {
       toast.error("Google sign-in failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onFacultySignIn = async () => {
+    setFacultyLoading(true);
+    try {
+      await signIn("faculty@center.in", "password");
+      toast.success("Signed in as Faculty");
+      navigate({ to: "/attendance" });
+    } catch {
+      toast.error("Faculty sign-in failed");
+    } finally {
+      setFacultyLoading(false);
     }
   };
 
@@ -81,7 +95,7 @@ function AuthPage() {
           {/* Google Sign-In button */}
           <button
             onClick={onGoogleSignIn}
-            disabled={loading}
+            disabled={loading || facultyLoading}
             className="flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium transition hover:bg-accent hover:border-primary/30 hover:shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? (
@@ -90,6 +104,27 @@ function AuthPage() {
               <GoogleLogo />
             )}
             {loading ? "Signing in…" : "Continue with Google"}
+          </button>
+
+          {/* Faculty divider */}
+          <div className="my-5 flex items-center gap-3">
+            <span className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground">or</span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          {/* Faculty Sign-In button */}
+          <button
+            onClick={onFacultySignIn}
+            disabled={loading || facultyLoading}
+            className="flex w-full items-center justify-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-medium text-primary transition hover:bg-primary/10 hover:border-primary/30 hover:shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {facultyLoading ? (
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+            ) : (
+              <GraduationCap className="h-5 w-5" />
+            )}
+            {facultyLoading ? "Signing in…" : "Sign in as Faculty"}
           </button>
         </div>
 
@@ -102,3 +137,4 @@ function AuthPage() {
     </div>
   );
 }
+
