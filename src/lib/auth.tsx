@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { api } from "@/lib/api";
 
 export type Role = "Owner" | "Coordinator" | "Faculty";
 export interface AuthUser {
@@ -10,22 +11,43 @@ export interface AuthUser {
 
 interface AuthContextValue {
   user: AuthUser | null;
-  signIn: (email: string, password: string) => Promise<AuthUser>;
-  signUp: (name: string, email: string, password: string, role: Role) => Promise<AuthUser>;
+  loading: boolean;
+  googleSignIn: (token: string) => Promise<AuthUser>;
   signOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 const STORAGE_KEY = "erp_auth_user";
 
+/** Map the backend role string to the frontend Role type */
+function mapRole(backendRole: string): Role {
+  switch (backendRole) {
+    case "OWNER":
+      return "Owner";
+    case "COORDINATOR":
+      return "Coordinator";
+    case "FACULTY":
+      return "Faculty";
+    default:
+      return "Coordinator";
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // Hydrate from localStorage on mount
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setUser(JSON.parse(raw));
-    } catch {}
+    } catch {
+      // corrupted data — clear it
+      localStorage.removeItem(STORAGE_KEY);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const persist = (u: AuthUser | null) => {
@@ -34,28 +56,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     else localStorage.removeItem(STORAGE_KEY);
   };
 
-  const signIn: AuthContextValue["signIn"] = async (email) => {
-    // Mock auth — accept any non-empty creds
-    const lc = email.toLowerCase();
-    if (lc.includes("faculty")) {
-      const u: AuthUser = { name: "Priya Menon", email, role: "Faculty", facultyId: "FAC-2001" };
-      persist(u);
-      return u;
+  const googleSignIn: AuthContextValue["googleSignIn"] = async (token) => {
+    const res = await api.post("/api/auth/google", { token });
+
+    // Backend returns 403 for unauthorized users
+    if (res.message === "User not authorized") {
+      throw new Error("User not authorized. Please contact the administrator.");
     }
-    const role: Role = lc.includes("owner") ? "Owner" : "Coordinator";
-    const u: AuthUser = { name: email.split("@")[0] || "User", email, role };
-    persist(u);
-    return u;
+
+    // Backend returns 400/500 for other errors
+    if (res.message && !res.role) {
+      throw new Error(res.message);
+    }
+
+    const role = mapRole(res.role);
+    const backendUser = res.user;
+
+    const authUser: AuthUser = {
+      name: backendUser.fullName || backendUser.name || "User",
+      email: backendUser.email,
+      role,
+      ...(role === "Faculty" ? { facultyId: `FAC-${backendUser.id}` } : {}),
+    };
+
+    persist(authUser);
+    return authUser;
   };
-  const signUp: AuthContextValue["signUp"] = async (name, email, _password, role) => {
-    const u: AuthUser = { name, email, role };
-    persist(u);
-    return u;
-  };
+
   const signOut = () => persist(null);
 
   return (
-    <AuthContext.Provider value={{ user, signIn, signUp, signOut }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, googleSignIn, signOut }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

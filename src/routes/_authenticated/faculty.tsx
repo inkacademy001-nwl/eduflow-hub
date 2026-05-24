@@ -1,13 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import {
-  attendanceSummary,
-  deleteTeacher,
-  getAttendanceFor,
-  getTeachers,
-  type DayStatus,
-  type Teacher,
-} from "@/lib/mock-data";
+import { useMemo, useState, useEffect } from "react";
+import { facultyApi, Teacher, FacultyDashboardData } from "@/lib/faculty-api";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -31,15 +25,32 @@ export const Route = createFileRoute("/_authenticated/faculty")({
 });
 
 function FacultyPage() {
-  const [, force] = useState({});
-  const refresh = () => force({});
   const [tab, setTab] = useState<"daily" | "hourly">("daily");
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
-  const all = getTeachers();
+  const [all, setAll] = useState<Teacher[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const { data } = await facultyApi.fetchFaculty("", 1, 1000);
+      setAll(data);
+    } catch (err) {
+      toast.error("Failed to fetch faculty");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refresh = () => fetchData();
   const list = all.filter((t) => t.salaryType === tab);
 
   const onExportSheets = () => {
-    const teachers = getTeachers();
+    const teachers = all;
 
     const headers = [
       "Faculty ID", "Full Name", "Phone", "Email",
@@ -124,7 +135,11 @@ function FacultyPage() {
         ))}
       </div>
 
-      {list.length === 0 ? (
+      {loading ? (
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : list.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-sm text-muted-foreground">
           No {tab} faculty yet.
         </div>
@@ -162,7 +177,9 @@ function FacultyCard({
   teacher: Teacher;
   onClick: () => void;
 }) {
-  const summary = useMemo(() => attendanceSummary(teacher.id), [teacher.id]);
+  const present = teacher.attendanceStats?.present || 0;
+  const absent = teacher.attendanceStats?.absent || 0;
+  const late = teacher.attendanceStats?.late || 0;
   const isDaily = teacher.salaryType === "daily";
   const expectedHours = teacher.expectedHours ?? 0;
   const weekHours = Math.round(expectedHours / 4);
@@ -198,9 +215,9 @@ function FacultyCard({
       {/* Mini stats */}
       {isDaily ? (
         <div className="grid grid-cols-3 gap-2 p-4 text-center">
-          <Stat color="success" label="Present" value={summary.present} />
-          <Stat color="destructive" label="Absent" value={summary.absent} />
-          <Stat color="warning" label="Late" value={summary.late} />
+          <Stat color="success" label="Present" value={present} />
+          <Stat color="destructive" label="Absent" value={absent} />
+          <Stat color="warning" label="Late" value={late} />
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2 p-4 text-center">
@@ -223,26 +240,58 @@ function FacultyModal({
   onChange: () => void;
 }) {
   const navigate = useNavigate();
-  const summary = useMemo(() => attendanceSummary(teacher.id), [teacher.id]);
   const [deductions, setDeductions] = useState<number>(0);
   const [bonus, setBonus] = useState<number>(0);
   const [showDetail, setShowDetail] = useState(false);
+  const [dashboard, setDashboard] = useState<FacultyDashboardData | null>(null);
+
+  useEffect(() => {
+    const now = new Date();
+    facultyApi.fetchFacultyDashboard(teacher.id, now.getMonth() + 1, now.getFullYear())
+      .then((data) => {
+        setDashboard(data);
+        setBonus(data.salary.bonus || 0);
+        setDeductions(data.salary.deductions || 0);
+      })
+      .catch(() => toast.error("Failed to load dashboard"));
+  }, [teacher.id]);
+
+  const handleSaveSalary = async () => {
+    const now = new Date();
+    try {
+      const res = await facultyApi.updateFacultySalary(teacher.id, {
+        month: now.getMonth() + 1,
+        year: now.getFullYear(),
+        bonus,
+        deductions
+      });
+      setDashboard(prev => prev ? { ...prev, salary: res.data.salary } : prev);
+      toast.success("Salary updated");
+      onChange();
+    } catch {
+      toast.error("Failed to update salary");
+    }
+  };
 
   const isDaily = teacher.salaryType === "daily";
-  const basic = isDaily
-    ? (teacher.monthlySalary ?? ((teacher.basicDaily ?? 0) * (teacher.workingDays ?? 0) + (teacher.hra ?? 0))) +
-      bonus
-    : (teacher.hourlyRate ?? 0) * (teacher.expectedHours ?? 0);
-  const finalSalary = basic - deductions;
+  
+  // Real-time calculation for UI
+  const baseAmount = isDaily ? (dashboard?.salary.basicPay || 0) : ((dashboard?.salary.totalHours || 0) * (dashboard?.salary.hourlyRate || 0));
+  const computedGross = baseAmount + bonus;
+  const computedNet = computedGross - deductions;
 
-  const expectedHours = teacher.expectedHours ?? 0;
+  const expectedHours = dashboard?.salary.totalHours ?? 0;
   const weekHours = Math.round(expectedHours / 4);
 
-  const onDelete = () => {
+  const onDelete = async () => {
     if (!confirm(`Delete ${teacher.fullName}?`)) return;
-    deleteTeacher(teacher.id);
-    toast.success("Faculty deleted");
-    onChange();
+    try {
+      await facultyApi.deleteFaculty(teacher.id);
+      toast.success("Faculty deleted");
+      onChange();
+    } catch (err) {
+      toast.error("Failed to delete faculty");
+    }
   };
 
   return (
@@ -334,17 +383,17 @@ function FacultyModal({
                   <AttendancePill
                     color="success"
                     label="Present"
-                    value={summary.present}
+                    value={dashboard?.attendanceStats.present || 0}
                   />
                   <AttendancePill
                     color="destructive"
                     label="Absent"
-                    value={summary.absent}
+                    value={dashboard?.attendanceStats.absent || 0}
                   />
                   <AttendancePill
                     color="warning"
                     label="Late"
-                    value={summary.late}
+                    value={dashboard?.attendanceStats.late || 0}
                   />
                 </div>
 
@@ -360,7 +409,7 @@ function FacultyModal({
                     <ChevronDown className="ml-1 h-3 w-3" />
                   )}
                 </button>
-                {showDetail && <DetailTable facultyId={teacher.id} />}
+                {showDetail && <DetailTable dashboard={dashboard} />}
               </GlassPanel>
 
               {/* Col 2 – Salary split */}
@@ -368,20 +417,21 @@ function FacultyModal({
                 <div className="space-y-3 text-sm">
                   <SalaryItem
                     label="Monthly Salary"
-                    value={`₹${(teacher.monthlySalary ?? ((teacher.basicDaily ?? 0) * (teacher.workingDays ?? 0))).toLocaleString("en-IN")}`}
+                    value={`₹${(dashboard?.salary.basicPay || 0).toLocaleString("en-IN")}`}
                   />
                   <div className="flex items-center justify-between border-b border-white/6 pb-2">
                     <span className="text-white/45">Bonus</span>
                     <Input
                       type="number"
                       value={bonus}
+                      onBlur={handleSaveSalary}
                       onChange={(e) => setBonus(Number(e.target.value) || 0)}
                       className="h-8 w-24 border-white/10 bg-white/5 text-right text-white"
                     />
                   </div>
                   <SalaryItem
                     label="Gross Total"
-                    value={`₹${basic.toLocaleString("en-IN")}`}
+                    value={`₹${computedGross.toLocaleString("en-IN")}`}
                     bold
                   />
 
@@ -390,9 +440,8 @@ function FacultyModal({
                     <Input
                       type="number"
                       value={deductions}
-                      onChange={(e) =>
-                        setDeductions(Number(e.target.value) || 0)
-                      }
+                      onBlur={handleSaveSalary}
+                      onChange={(e) => setDeductions(Number(e.target.value) || 0)}
                       className="h-8 w-24 border-white/10 bg-white/5 text-right text-white"
                     />
                   </div>
@@ -402,7 +451,7 @@ function FacultyModal({
                       Net Salary
                     </span>
                     <span className="text-lg font-bold text-primary">
-                      ₹{finalSalary.toLocaleString("en-IN")}
+                      ₹{computedNet.toLocaleString("en-IN")}
                     </span>
                   </div>
                 </div>
@@ -410,7 +459,7 @@ function FacultyModal({
 
               {/* Col 3 – Attendance calendar */}
               <GlassPanel title="Attendance Calendar">
-                <AttendanceCalendar facultyId={teacher.id} />
+                <AttendanceCalendar dashboard={dashboard} />
               </GlassPanel>
             </div>
           ) : (
@@ -441,15 +490,11 @@ function FacultyModal({
                 <div className="space-y-3 text-sm">
                   <SalaryItem
                     label="Salary per Hour"
-                    value={`₹${(teacher.hourlyRate ?? 0).toLocaleString("en-IN")}`}
+                    value={`₹${(dashboard?.salary.hourlyRate || 0).toLocaleString("en-IN")}`}
                   />
                   <SalaryItem
                     label="Total Hours (Month)"
                     value={String(expectedHours)}
-                  />
-                  <SalaryItem
-                    label="Overtime Rate"
-                    value={`₹${(teacher.overtimeRate ?? 0).toLocaleString("en-IN")}/hr`}
                   />
 
                   <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-3 py-2.5 mt-2">
@@ -457,7 +502,7 @@ function FacultyModal({
                       Total Salary
                     </span>
                     <span className="text-lg font-bold text-primary">
-                      ₹{basic.toLocaleString("en-IN")}
+                      ₹{computedGross.toLocaleString("en-IN")}
                     </span>
                   </div>
                   <p className="text-[10px] text-white/25">
@@ -567,15 +612,11 @@ function SalaryItem({
 }
 
 /* ─── Attendance Calendar (replicating reference image) ─────────────────── */
-function AttendanceCalendar({ facultyId }: { facultyId: string }) {
+function AttendanceCalendar({ dashboard }: { dashboard: FacultyDashboardData | null }) {
   const now = new Date();
   const [offset, setOffset] = useState(0);
   const targetDate = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-  const arr = getAttendanceFor(
-    facultyId,
-    targetDate.getFullYear(),
-    targetDate.getMonth(),
-  );
+  const isCurrentMonth = offset === 0;
 
   // Day-of-week offset so the 1st lands on the correct column
   const firstDow = targetDate.getDay(); // 0=Sun … 6=Sat
@@ -626,9 +667,17 @@ function AttendanceCalendar({ facultyId }: { facultyId: string }) {
         ))}
 
         {/* Actual days */}
-        {arr.map((status, i) => (
-          <CalendarDay key={i} day={i + 1} status={status} />
-        ))}
+        {Array.from({ length: new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate() }).map((_, i) => {
+          const dayStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`;
+          let status = null;
+          if (isCurrentMonth && dashboard) {
+            const record = dashboard.calendar.find(c => c.date === dayStr);
+            status = record?.status ? record.status.toLowerCase() : "none";
+          } else {
+            status = "none";
+          }
+          return <CalendarDay key={i} day={i + 1} status={status as any} />;
+        })}
       </div>
 
       {/* Legend */}
@@ -742,22 +791,21 @@ function Stat({
 }
 
 /* ─── Detailed attendance table (unchanged – Detailed Info button) ───────── */
-function DetailTable({ facultyId }: { facultyId: string }) {
-  const now = new Date();
-  const arr = getAttendanceFor(facultyId, now.getFullYear(), now.getMonth());
+function DetailTable({ dashboard }: { dashboard: FacultyDashboardData | null }) {
+  if (!dashboard) return null;
   return (
     <div className="mt-3 max-h-48 overflow-y-auto rounded-xl border border-white/8">
       <table className="w-full text-xs">
         <thead className="sticky top-0 bg-white/5 text-[10px] uppercase tracking-wider text-white/35">
           <tr>
             <th className="px-2 py-1.5 text-left">Date</th>
-            <th className="px-2 py-1.5 text-left">Check-in</th>
-            <th className="px-2 py-1.5 text-left">Check-out</th>
+            <th className="px-2 py-1.5 text-left">Status</th>
           </tr>
         </thead>
         <tbody>
-          {arr.map((s, i) => {
-            const d = new Date(now.getFullYear(), now.getMonth(), i + 1);
+          {dashboard.calendar.map((record, i) => {
+            if (record.status === "none" || !record.status) return null;
+            const d = new Date(record.date);
             const label = d.toLocaleDateString(undefined, {
               month: "short",
               day: "numeric",
@@ -765,13 +813,8 @@ function DetailTable({ facultyId }: { facultyId: string }) {
             return (
               <tr key={i} className="border-t border-white/5">
                 <td className="px-2 py-1.5 text-white/55">{label}</td>
-                <td className="px-2 py-1.5 text-white/55">
-                  {s === "present" || s === "late"
-                    ? "09:" + (s === "late" ? "32" : "02")
-                    : "—"}
-                </td>
-                <td className="px-2 py-1.5 text-white/55">
-                  {s === "present" || s === "late" ? "17:05" : "—"}
+                <td className="px-2 py-1.5 text-white/55 capitalize">
+                  {record.status}
                 </td>
               </tr>
             );

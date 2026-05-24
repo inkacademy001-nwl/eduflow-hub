@@ -12,8 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, ArrowRight, Calendar, Check, Phone, Plus, Trash2, UserPlus } from "lucide-react";
-import { addStudent, getStudents, updateStudent } from "@/lib/mock-data";
+import { ArrowLeft, ArrowRight, Calendar, Check, Phone, Plus, Trash2, UserPlus, Loader2 } from "lucide-react";
+import { studentApi, type Student } from "@/lib/student-api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -99,12 +99,11 @@ const ANIM_STYLES = `
 `;
 
 /* ── form component ──────────────────────────────────────────────────────── */
-export function StudentForm({ editId }: { editId?: string }) {
-  const existing = editId
-    ? getStudents().find((s) => s.id === editId)
-    : undefined;
+export function StudentForm({ existingData }: { existingData?: Student }) {
+  const existing = existingData;
   const isEdit = !!existing;
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [step, setStep] = useState(1);
   const [animKey, setAnimKey] = useState(0);
@@ -120,7 +119,8 @@ export function StudentForm({ editId }: { editId?: string }) {
   const [extraContacts, setExtraContacts] = useState<
     { number: string; relation: string }[]
   >(existing?.extraContacts ?? []);
-  const [parentName, setParentName] = useState(existing?.parentName ?? "");
+  const [fatherName, setFatherName] = useState(existing?.fatherName ?? "");
+  const [motherName, setMotherName] = useState(existing?.motherName ?? "");
   const [parentPhone, setParentPhone] = useState(existing?.parentPhone ?? "");
   const [address, setAddress] = useState(existing?.address ?? "");
   const [extraActivities, setExtraActivities] = useState<string[]>(
@@ -145,11 +145,7 @@ export function StudentForm({ editId }: { editId?: string }) {
     existing?.admissionDate ?? localToday(),
   );
   const [notes, setNotes] = useState(existing?.notes ?? "");
-
-  const nextId = useMemo(
-    () => existing?.id ?? `STU-${1000 + getStudents().length + 1}`,
-    [existing],
-  );
+  const [fees, setFees] = useState<string>(existing?.fees != null ? String(existing.fees) : "");
 
   /* ── helpers ── */
   const toggleActivity = (a: string) =>
@@ -183,7 +179,7 @@ export function StudentForm({ editId }: { editId?: string }) {
     setStep(1);
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!cls || !board || subjects.length === 0) {
       toast.error("Class, board and at least one subject are required");
       return;
@@ -192,33 +188,51 @@ export function StudentForm({ editId }: { editId?: string }) {
       toast.error("Admission date is required");
       return;
     }
+
+    const cleanPhone = (p: string) => p.replace(/\D/g, "").slice(-10);
+    const mappedContacts = [
+      { number: cleanPhone(primaryPhone), relation: "father" },
+      ...(parentPhone ? [{ number: cleanPhone(parentPhone), relation: "parent" }] : []),
+      ...extraContacts.map(c => ({ number: cleanPhone(c.number), relation: c.relation || "other" }))
+    ].filter(c => c.number.length === 10);
+
     const payload = {
       fullName,
-      dob,
-      gender,
-      primaryPhone,
-      extraContacts,
-      parentName,
-      parentPhone,
-      address,
-      extraActivities,
-      class: Number(cls),
-      board,
-      stream,
-      subjects,
-      previousSchool,
-      academicYear,
-      admissionDate,
-      notes,
+      gender: gender.toLowerCase() || "other",
+      dateOfBirth: dob || null,
+      address: address || null,
+      fatherName: fatherName || null,
+      motherName: motherName || null,
+      contacts: mappedContacts,
+      academic: {
+        dateOfJoining: admissionDate || null,
+        standard: cls.toString(),
+        board,
+        schoolName: previousSchool || null,
+        subjects: subjects.length ? subjects : ["General"],
+        extraActivities
+      },
+      fee: {
+        totalStandardFee: Number(fees) || 0,
+        finalFee: Number(fees) || 0
+      }
     };
-    if (isEdit && existing) {
-      updateStudent({ ...payload, id: existing.id });
-      toast.success(`Student ${fullName} updated`);
-    } else {
-      addStudent(payload);
-      toast.success(`Student ${fullName} admitted`);
+
+    setIsSubmitting(true);
+    try {
+      if (isEdit && existing) {
+        await studentApi.updateStudentApi(existing.id, payload);
+        toast.success(`Student ${fullName} updated`);
+      } else {
+        await studentApi.createStudent(payload);
+        toast.success(`Student ${fullName} admitted`);
+      }
+      navigate({ to: "/students" });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save student");
+    } finally {
+      setIsSubmitting(false);
     }
-    navigate({ to: "/students" });
   };
 
   return (
@@ -360,10 +374,19 @@ export function StudentForm({ editId }: { editId?: string }) {
                   )}
                 </div>
 
-                <Field label="Parent / Guardian Name">
+                <Field label="Father's Name">
                   <Input
-                    value={parentName}
-                    onChange={(e) => setParentName(e.target.value)}
+                    value={fatherName}
+                    onChange={(e) => setFatherName(e.target.value)}
+                    placeholder="e.g. Rohit Sharma"
+                  />
+                </Field>
+
+                <Field label="Mother's Name">
+                  <Input
+                    value={motherName}
+                    onChange={(e) => setMotherName(e.target.value)}
+                    placeholder="e.g. Neha Sharma"
                   />
                 </Field>
 
@@ -526,6 +549,16 @@ export function StudentForm({ editId }: { editId?: string }) {
                   </div>
                 </Field>
 
+                <Field label="Fees (₹)">
+                  <Input
+                    type="number"
+                    value={fees}
+                    onChange={(e) => setFees(e.target.value)}
+                    placeholder="e.g. 15000"
+                    min="0"
+                  />
+                </Field>
+
                 <Field label="Notes / Remarks" full>
                   <Textarea
                     value={notes}
@@ -538,8 +571,8 @@ export function StudentForm({ editId }: { editId?: string }) {
                   <Button variant="outline" onClick={goBack}>
                     <ArrowLeft className="mr-2 h-4 w-4" /> Back
                   </Button>
-                  <Button onClick={submit} size="lg" className="min-w-40">
-                    <Check className="mr-2 h-4 w-4" />
+                  <Button onClick={submit} size="lg" className="min-w-40" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                     {isEdit ? "Update Student" : "Submit Admission"}
                   </Button>
                 </div>

@@ -1,28 +1,27 @@
 import { GoogleLogin } from "@react-oauth/google";
-import { api } from "@/lib/api";
 
-export default function GoogleSignIn() {
+interface GoogleSignInProps {
+  onSuccess: (credential: string) => void;
+  onError?: () => void;
+}
+
+export default function GoogleSignIn({ onSuccess, onError }: GoogleSignInProps) {
   return (
     <GoogleLogin
-      onSuccess={async (credentialResponse) => {
+      onSuccess={(credentialResponse) => {
         const token = credentialResponse.credential;
-
-        const res = await api.post("/auth/google", {
-          token,
-        });
-
-        console.log(res);
-
-        // 👉 Save user + redirect
-        localStorage.setItem("user", JSON.stringify(res));
-
-        if (res.role === "OWNER") window.location.href = "/admin";
-        else if (res.role === "COORDINATOR") window.location.href = "/admin";
-        else if (res.role === "FACULTY") window.location.href = "/faculty";
+        if (token) {
+          onSuccess(token);
+        }
       }}
       onError={() => {
-        console.log("Login Failed");
+        onError?.();
       }}
+      theme="outline"
+      size="large"
+      width="100%"
+      text="signin_with"
+      shape="rectangular"
     />
   );
 }

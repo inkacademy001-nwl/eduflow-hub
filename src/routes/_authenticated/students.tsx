@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useEffect } from "react";
 import {
-  deleteStudent,
-  getStudents,
+  studentApi,
   type Student,
-} from "@/lib/mock-data";
+} from "@/lib/student-api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +29,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+
 import {
   Pencil,
   Trash2,
@@ -67,7 +68,25 @@ function StudentsPage() {
   const [selected, setSelected] = useState<Student | null>(null);
   const [exporting, setExporting] = useState(false);
 
-  const all = getStudents();
+  const [all, setAll] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadStudents = async () => {
+    setLoading(true);
+    try {
+      const res = await studentApi.fetchStudents(search, 1, 100);
+      setAll(res.data);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load students");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => loadStudents(), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const filtered = useMemo(() => {
     let list = all;
@@ -97,31 +116,26 @@ function StudentsPage() {
   const removeFilter = (i: number) =>
     setFilters((arr) => arr.filter((_, idx) => idx !== i));
 
-  const onDelete = (s: Student) => {
+  const onDelete = async (s: Student) => {
     if (!confirm(`Delete ${s.fullName}?`)) return;
-    deleteStudent(s.id);
-    toast.success("Student deleted");
-    refresh();
+    try {
+      await studentApi.deleteStudentApi(s.id);
+      toast.success("Student deleted");
+      loadStudents();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete student");
+    }
   };
 
   const onExport = async () => {
     setExporting(true);
     try {
-      // Mock export — generate CSV client-side
-      const headers = ["ID", "Name", "Class", "Board", "Subjects", "Phone", "Parent"];
-      const rows = filtered.map((s) =>
-        [s.id, s.fullName, s.class, s.board, s.subjects.join("|"), s.primaryPhone, s.parentName || ""]
-          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-          .join(","),
-      );
-      const csv = [headers.join(","), ...rows].join("\n");
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
+      const url = `${import.meta.env.VITE_API_BASE_URL || ""}/api/students/download-csv`;
       const a = document.createElement("a");
       a.href = url;
-      a.download = `students-${Date.now()}.csv`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
       await new Promise((r) => setTimeout(r, 400));
       toast.success("Export ready");
     } finally {
@@ -199,7 +213,20 @@ function StudentsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((s) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                    <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                    No students found.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((s) => (
                 <tr
                   key={s.id}
                   onClick={() => setSelected(s)}
@@ -253,7 +280,7 @@ function StudentsPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )))}
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
@@ -342,44 +369,130 @@ function ClassFilterDropdown({ onSelect }: { onSelect: (cls: number, subject: st
 }
 
 function StudentModal({ student, onClose }: { student: Student | null; onClose: () => void }) {
+  const [details, setDetails] = useState<Student | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (student) {
+      setLoading(true);
+      studentApi.fetchStudentById(student.id)
+        .then(setDetails)
+        .catch((err) => toast.error(err.message || "Failed to load details"))
+        .finally(() => setLoading(false));
+    } else {
+      setDetails(null);
+    }
+  }, [student]);
+
   return (
     <Dialog open={!!student} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
-        {student && (
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        {loading ? (
+          <div className="flex h-32 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : details && (
           <>
             <DialogHeader>
-              <DialogTitle>{student.fullName}</DialogTitle>
-              <p className="text-xs text-muted-foreground">{student.id}</p>
+              <DialogTitle>{details.fullName}</DialogTitle>
+              <p className="text-xs text-muted-foreground">{details.id}</p>
             </DialogHeader>
             <div className="space-y-4 text-sm">
+              {/* Class & Board */}
               <Row label="Class">
-                Class {student.class}
-                {student.stream ? ` – ${student.stream}` : ""} • {student.board}
+                Class {details.class}
+                {details.stream ? ` – ${details.stream}` : ""} • {details.board}
               </Row>
-              <Row label="Primary Phone">{student.primaryPhone}</Row>
-              {student.secondaryPhone && (
-                <Row label="Secondary Phone">{student.secondaryPhone}</Row>
+
+              {/* Gender */}
+              <Row label="Gender">{details.gender || "—"}</Row>
+
+              {/* Date of Birth */}
+              <Row label="Date of Birth">{details.dob || "—"}</Row>
+
+              {/* Primary Phone */}
+              <Row label="Primary Phone">{details.primaryPhone}</Row>
+
+              {/* Secondary Phone */}
+              {details.secondaryPhone && (
+                <Row label="Secondary Phone">{details.secondaryPhone}</Row>
               )}
-              <Row label="Parent">
-                {student.parentName || "—"} {student.parentPhone ? `• ${student.parentPhone}` : ""}
-              </Row>
+
+              {/* Father's Name */}
+              <Row label="Father's Name">{details.fatherName || "—"}</Row>
+
+              {/* Mother's Name */}
+              <Row label="Mother's Name">{details.motherName || "—"}</Row>
+
+              {/* Parent Phone */}
+              <Row label="Parent Phone">{details.parentPhone || "—"}</Row>
+
+              {/* Additional Contacts */}
+              {details.extraContacts && details.extraContacts.length > 0 && (
+                <Row label="Other Contacts">
+                  <div className="space-y-1">
+                    {details.extraContacts.map((c, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="rounded bg-accent px-1.5 py-0.5 text-[10px] font-medium text-accent-foreground">
+                          {c.relation}
+                        </span>
+                        <span>{c.number}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Row>
+              )}
+
+              {/* Address */}
+              <Row label="Address">{details.address || "—"}</Row>
+
+              {/* Previous School */}
+              <Row label="School Name">{details.previousSchool || "—"}</Row>
+
+              {/* Subjects */}
               <Row label="Subjects">
                 <div className="flex flex-wrap gap-1.5">
-                  {student.subjects.map((s) => (
+                  {details.subjects.map((s) => (
                     <span key={s} className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground">
                       {s}
                     </span>
                   ))}
                 </div>
               </Row>
-              <Row label="Address">{student.address || "—"}</Row>
-              <Row label="Admission Date">{student.admissionDate}</Row>
-              <Row label="Academic Year">{student.academicYear || "—"}</Row>
-              <div className={cn("rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground")}>
-                <div className="flex items-center gap-2">
-                  <Lock className="h-3.5 w-3.5" /> Fee details — Coming Soon
-                </div>
-              </div>
+
+              {/* Extra Curricular Activities */}
+              <Row label="Extra Activities">
+                {details.extraActivities && details.extraActivities.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {details.extraActivities.map((a) => (
+                      <span key={a} className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  "—"
+                )}
+              </Row>
+
+              {/* Admission Date & Academic Year */}
+              <Row label="Admission Date">{details.admissionDate}</Row>
+
+              {/* Fees */}
+              <Row label="Fees">
+                {details.fees != null ? (
+                  <span className="font-semibold text-foreground">₹{details.fees.toLocaleString("en-IN")}</span>
+                ) : (
+                  <span className="text-muted-foreground">Not set</span>
+                )}
+              </Row>
+
+              {/* Notes */}
+              {details.notes && (
+                <Row label="Notes">
+                  <p className="whitespace-pre-wrap text-muted-foreground">{details.notes}</p>
+                </Row>
+              )}
             </div>
           </>
         )}

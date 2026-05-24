@@ -12,6 +12,23 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => null);
+      throw new Error(errorData?.message || `HTTP error ${res.status}`);
+    }
+    return res.json();
+  },
+
+  patch: async (url: string, data: any) => {
+    const res = await fetch(BASE_URL + url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => null);
+      throw new Error(errorData?.message || `HTTP error ${res.status}`);
+    }
     return res.json();
   },
 
@@ -21,6 +38,10 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: data ? JSON.stringify(data) : undefined,
     });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => null);
+      throw new Error(errorData?.message || `HTTP error ${res.status}`);
+    }
     return res.json();
   },
 };

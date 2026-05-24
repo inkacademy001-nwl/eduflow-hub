@@ -20,10 +20,10 @@ import {
   Clock,
   UserPlus,
 } from "lucide-react";
-import { addTeacher, getTeachers, updateTeacher } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Stepper } from "./add-student";
+import { facultyApi, Teacher } from "@/lib/faculty-api";
 
 export const Route = createFileRoute("/_authenticated/admissions/add-teacher")(
   {
@@ -76,12 +76,11 @@ function localToday(): string {
 }
 
 /* ── Main form ───────────────────────────────────────────────────────────── */
-export function TeacherForm({ editId }: { editId?: string }) {
-  const existing = editId
-    ? getTeachers().find((t) => t.id === editId)
-    : undefined;
+export function TeacherForm({ initialData }: { initialData?: Teacher }) {
+  const existing = initialData;
   const isEdit = !!existing;
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [step, setStep] = useState(1);
   const [animKey, setAnimKey] = useState(0);
@@ -126,6 +125,9 @@ export function TeacherForm({ editId }: { editId?: string }) {
   const [hourlyRate, setHourlyRate] = useState<number | "">(
     existing?.hourlyRate ?? "",
   );
+  const [timeSlot, setTimeSlot] = useState<string>(
+    existing?.timeSlot ?? "5:30 PM",
+  );
 
   /* ── helpers ── */
   const toggleStr = (setter: React.Dispatch<React.SetStateAction<string[]>>, v: string) =>
@@ -150,7 +152,7 @@ export function TeacherForm({ editId }: { editId?: string }) {
     setStep(1);
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (salaryType === "daily" && !monthlySalary)
       return toast.error("Enter monthly salary");
     if (salaryType === "hourly" && !hourlyRate)
@@ -158,32 +160,44 @@ export function TeacherForm({ editId }: { editId?: string }) {
 
     const payload = {
       fullName,
-      dob,
-      gender,
-      phone,
-      email,
-      address,
-      emergencyName,
-      emergencyPhone,
-      qualification,
-      designation: existing?.designation ?? "Teacher",
+      dateOfBirth: dob || null,
+      gender: gender || "Other",
+      phoneNumber: phone,
+      email: email || null,
+      address: address || null,
+      emergencyName: emergencyName || null,
+      emergencyPhone: emergencyPhone || null,
+      academic: {
+        qualification: qualification || null,
+        designation: existing?.designation ?? "Teacher",
+        dateOfJoining: joiningDate || null,
+        classes,
+        extraActivities
+      },
       subjects,
-      classes,
-      extraActivities,
-      joiningDate,
-      salaryType,
-      monthlySalary: monthlySalary === "" ? undefined : Number(monthlySalary),
-      hourlyRate: hourlyRate === "" ? undefined : Number(hourlyRate),
+      workConfig: {
+        type: salaryType.toUpperCase(),
+        timeSlot: salaryType === "daily" ? timeSlot : null,
+        basicPay: salaryType === "daily" ? Number(monthlySalary) : null,
+        hourlyRate: salaryType === "hourly" ? Number(hourlyRate) : null,
+      }
     };
 
-    if (isEdit && existing) {
-      updateTeacher({ ...payload, id: existing.id });
-      toast.success(`${fullName} updated`);
-    } else {
-      addTeacher(payload);
-      toast.success(`${fullName} added to faculty`);
+    setIsSubmitting(true);
+    try {
+      if (isEdit && existing) {
+        await facultyApi.updateFaculty(existing.id, payload);
+        toast.success(`${fullName} updated`);
+      } else {
+        await facultyApi.createFaculty(payload);
+        toast.success(`${fullName} added to faculty`);
+      }
+      navigate({ to: "/faculty" });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save faculty");
+    } finally {
+      setIsSubmitting(false);
     }
-    navigate({ to: "/faculty" });
   };
 
   return (
@@ -443,6 +457,21 @@ export function TeacherForm({ editId }: { editId?: string }) {
                 <div className="max-w-sm space-y-4">
                   {salaryType === "daily" ? (
                     <>
+                      <F label="Time Slot *">
+                        <Select
+                          value={timeSlot}
+                          onValueChange={(val) => setTimeSlot(val)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Time Slot" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="5:30 PM">5:30 PM</SelectItem>
+                            <SelectItem value="6:00 PM">6:00 PM</SelectItem>
+                            <SelectItem value="6:30 PM">6:30 PM</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </F>
                       <F label="Monthly Salary (₹) *">
                         <Input
                           type="number"
@@ -504,7 +533,7 @@ export function TeacherForm({ editId }: { editId?: string }) {
                   <Button variant="outline" onClick={goBack}>
                     <ArrowLeft className="mr-2 h-4 w-4" /> Back
                   </Button>
-                  <Button onClick={submit} size="lg" className="min-w-40">
+                  <Button onClick={submit} size="lg" className="min-w-40" disabled={isSubmitting}>
                     <Check className="mr-2 h-4 w-4" />
                     {isEdit ? "Update Faculty" : "Submit"}
                   </Button>

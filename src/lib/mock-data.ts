@@ -1,24 +1,3 @@
-export interface Student {
-  id: string;
-  fullName: string;
-  dob?: string;
-  gender?: string;
-  primaryPhone: string;
-  secondaryPhone?: string;
-  parentName?: string;
-  parentPhone?: string;
-  address?: string;
-  class: number;
-  board: string;
-  stream?: string;
-  subjects: string[];
-  extraActivities?: string[];
-  extraContacts?: { number: string; relation: string }[];
-  previousSchool?: string;
-  academicYear?: string;
-  admissionDate: string;
-  notes?: string;
-}
 
 export interface Teacher {
   id: string;
@@ -52,63 +31,7 @@ export interface Teacher {
   extraActivities?: string[];
 }
 
-const STUDENT_KEY = "erp_students";
 const TEACHER_KEY = "erp_teachers";
-
-const seedStudents: Student[] = [
-  {
-    id: "STU-1001",
-    fullName: "Aarav Sharma",
-    primaryPhone: "+91 98765 43210",
-    parentName: "Rohit Sharma",
-    parentPhone: "+91 98765 11111",
-    class: 12,
-    board: "CBSE",
-    stream: "PCM",
-    subjects: ["Physics", "Chemistry", "Maths"],
-    admissionDate: "2024-06-12",
-    address: "12 MG Road, Bengaluru",
-    academicYear: "2024-25",
-  },
-  {
-    id: "STU-1002",
-    fullName: "Diya Patel",
-    primaryPhone: "+91 99887 76655",
-    parentName: "Hiren Patel",
-    parentPhone: "+91 99887 00000",
-    class: 10,
-    board: "State Board",
-    subjects: ["Maths", "Science", "English"],
-    admissionDate: "2024-05-21",
-    academicYear: "2024-25",
-  },
-  {
-    id: "STU-1003",
-    fullName: "Kabir Rao",
-    primaryPhone: "+91 90000 12345",
-    parentName: "Anjali Rao",
-    parentPhone: "+91 90000 99999",
-    class: 8,
-    board: "CBSE",
-    subjects: ["All Subjects"],
-    admissionDate: "2024-04-02",
-    academicYear: "2024-25",
-  },
-  {
-    id: "STU-1004",
-    fullName: "Meera Iyer",
-    primaryPhone: "+91 91111 22222",
-    parentName: "Suresh Iyer",
-    parentPhone: "+91 91111 33333",
-    class: 11,
-    board: "ICSE",
-    stream: "Commerce",
-    subjects: ["Accounts", "Commerce", "Maths"],
-    admissionDate: "2024-06-30",
-    academicYear: "2024-25",
-  },
-];
-
 const seedTeachers: Teacher[] = [
   {
     id: "FAC-2001",
@@ -192,28 +115,6 @@ function save<T>(key: string, value: T[]) {
   if (typeof window !== "undefined") localStorage.setItem(key, JSON.stringify(value));
 }
 
-export function getStudents(): Student[] {
-  return load(STUDENT_KEY, seedStudents);
-}
-export function addStudent(s: Omit<Student, "id">): Student {
-  const list = getStudents();
-  const id = `STU-${1000 + list.length + 1}`;
-  const created = { ...s, id };
-  save(STUDENT_KEY, [created, ...list]);
-  return created;
-}
-export function updateStudent(s: Student) {
-  save(
-    STUDENT_KEY,
-    getStudents().map((x) => (x.id === s.id ? s : x)),
-  );
-}
-export function deleteStudent(id: string) {
-  save(
-    STUDENT_KEY,
-    getStudents().filter((x) => x.id !== id),
-  );
-}
 
 export function getTeachers(): Teacher[] {
   return load(TEACHER_KEY, seedTeachers);

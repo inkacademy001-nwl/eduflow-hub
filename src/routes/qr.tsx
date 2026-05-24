@@ -1,25 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  getHolidays,
-  setHolidays,
-  getScans,
-  pushScan,
-  getTeachers,
-  type ScanEntry,
-} from "@/lib/mock-data";
 import { ArrowLeft, RefreshCw, QrCode, CalendarDays, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { attendanceApi, type ScanEntry } from "@/lib/attendance-api";
 
 export const Route = createFileRoute("/qr")({
   component: QRDisplay,
 });
 
-const REFRESH_SECONDS = 30;
+const REFRESH_SECONDS = 15;
 
 /** Convert YYYY-MM-DD string → local-midnight Date (avoids UTC shift in IST) */
 function isoToLocalDate(iso: string): Date {
@@ -39,76 +32,173 @@ function localMidnightToday(): Date {
   return d;
 }
 
+/** Normalize any Date to local midnight for reliable comparisons */
+function toMidnight(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 function QRDisplay() {
   const [now, setNow] = useState(() => Date.now());
-  const [tokenStart, setTokenStart] = useState(() =>
-    Math.floor(Date.now() / 1000 / REFRESH_SECONDS) * REFRESH_SECONDS,
-  );
+  const [token, setToken] = useState<string>("LOADING...");
+  const [tokenStart, setTokenStart] = useState(() => Date.now());
+
   const [scans, setScans] = useState<ScanEntry[]>([]);
-  const [holidays, setHolidayState] = useState<Date[]>([]);
+  // Store holidays as ISO strings (YYYY-MM-DD) for reliable equality checks
+  const [holidayIsos, setHolidayIsos] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    setScans(getScans());
-    setHolidayState(getHolidays().map(isoToLocalDate));
-  }, []);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    const i = setInterval(() => {
-      const n = Date.now();
-      setNow(n);
-      const ts = Math.floor(n / 1000 / REFRESH_SECONDS) * REFRESH_SECONDS;
-      setTokenStart((prev) => (ts !== prev ? ts : prev));
-    }, 1000);
-    return () => clearInterval(i);
-  }, []);
+  const [tokenKey, setTokenKey] = useState(0);
 
-  // Simulate incoming scans every ~12s
-  useEffect(() => {
-    const teachers = getTeachers();
-    if (!teachers.length) return;
-    const i = setInterval(() => {
-      const t = teachers[Math.floor(Math.random() * teachers.length)];
-      const entry: ScanEntry = {
-        id: `${Date.now()}`,
-        facultyName: t.fullName,
-        type: Math.random() > 0.5 ? "Check-In" : "Check-Out",
-        timestamp: new Date().toISOString(),
-      };
-      pushScan(entry);
-      setScans(getScans());
-    }, 12000);
-    return () => clearInterval(i);
-  }, []);
-
-  const elapsed = Math.floor(now / 1000) - tokenStart;
-  const remaining = Math.max(0, REFRESH_SECONDS - elapsed);
-  const token = useMemo(
-    () =>
-      `BMT|t=${tokenStart}|h=${btoa(String(tokenStart * 9973)).slice(0, 10)}`,
-    [tokenStart],
+  // Derive Date[] from the ISO set — memoized so reference is stable between renders
+  const holidayDates = useMemo<Date[]>(
+    () => Array.from(holidayIsos).map(isoToLocalDate),
+    [holidayIsos],
   );
 
-  const onSelectHoliday = (date?: Date) => {
-    if (!date) return;
-    // Block past dates
-    if (date < localMidnightToday()) {
-      toast.error("Holidays cannot be marked for past days");
-      return;
+  // Initial load
+  useEffect(() => {
+    loadScans();
+    loadHolidays();
+  }, []);
+
+  const loadScans = async () => {
+    try {
+      const data = await attendanceApi.fetchRecentScans();
+      setScans(data);
+    } catch {
+      // quiet fail
     }
-    const iso = dateToLocalIso(date);
-    const existing = new Set(getHolidays());
-    if (existing.has(iso)) existing.delete(iso);
-    else existing.add(iso);
-    const next = Array.from(existing);
-    setHolidays(next);
-    setHolidayState(next.map(isoToLocalDate));
+  };
+
+  const loadHolidays = async () => {
+    try {
+      const data = await attendanceApi.fetchHolidays();
+      const isos = new Set(data.map((h: { date: string }) => h.date.split("T")[0]));
+      setHolidayIsos(isos as Set<string>);
+    } catch {
+      // quiet fail
+    }
+  };
+
+  // QR Token Generation Polling
+  useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        const res = await attendanceApi.fetchQrToken();
+        setToken(res.token);
+        setTokenStart(Date.now());
+      } catch {
+        toast.error("Failed to fetch QR token");
+      }
+    };
+
+    fetchToken();
+    const interval = setInterval(fetchToken, REFRESH_SECONDS * 1000);
+    return () => clearInterval(interval);
+  }, [tokenKey]);
+
+  const handleRegenerateQR = () => {
+    setToken("LOADING...");
+    setTokenKey((k) => k + 1);
+  };
+
+  // Timer for progress bar
+  useEffect(() => {
+    const i = setInterval(() => setNow(Date.now()), 100);
+    return () => clearInterval(i);
+  }, []);
+
+  // Poll recent scans every 5 seconds
+  useEffect(() => {
+    const i = setInterval(loadScans, 5000);
+    return () => clearInterval(i);
+  }, []);
+
+  const elapsed = Math.max(0, Math.floor((now - tokenStart) / 1000));
+  const remaining = Math.max(0, REFRESH_SECONDS - elapsed);
+
+  // -------------------------------------------------------------------
+  // Holiday toggle — key fix: operate on ISO strings, not Date objects
+  // -------------------------------------------------------------------
+  const onSelectHoliday = useCallback(
+    async (day: Date | undefined) => {
+      if (!day) return;
+
+      const midnight = toMidnight(day);
+      const todayMidnight = localMidnightToday();
+
+      if (midnight < todayMidnight) {
+        toast.error("Holidays cannot be marked for past days");
+        return;
+      }
+
+      const iso = dateToLocalIso(midnight);
+      const isAdding = !holidayIsos.has(iso);
+
+      // Optimistic update — operate on the ISO set directly
+      setHolidayIsos((prev) => {
+        const next = new Set(prev);
+        if (isAdding) {
+          next.add(iso);
+        } else {
+          next.delete(iso);
+        }
+        return next;
+      });
+
+      try {
+        if (!isAdding) {
+          await attendanceApi.removeHoliday({ date: iso });
+          toast.success("Holiday removed");
+        } else {
+          await attendanceApi.setHoliday({ date: iso, reason: "Declared Holiday" });
+          toast.success("Holiday declared");
+        }
+      } catch (err: any) {
+        // Revert optimistic update on failure
+        setHolidayIsos((prev) => {
+          const next = new Set(prev);
+          if (isAdding) {
+            next.delete(iso);
+          } else {
+            next.add(iso);
+          }
+          return next;
+        });
+        toast.error(err.message || "Failed to update holiday");
+      }
+    },
+    [holidayIsos],
+  );
+
+  // Stable disabled matcher — memoized to prevent Calendar from re-rendering on every tick
+  const isDateDisabled = useCallback(
+    (date: Date) => toMidnight(date) < localMidnightToday(),
+    [],
+  );
+
+  // Stable selected matcher — checks ISO set directly, no Date equality issues
+  const isDateSelected = useCallback(
+    (date: Date) => holidayIsos.has(dateToLocalIso(toMidnight(date))),
+    [holidayIsos],
+  );
+
+  const handleClearHolidays = () => {
+    toast.info("Please tap individual dates to remove holidays.");
   };
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          <Link to="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+          <Link
+            to="/"
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
           </Link>
           <div className="flex items-center gap-2 text-sm font-medium">
@@ -122,20 +212,36 @@ function QRDisplay() {
         <section className="rounded-2xl border border-border bg-card p-6 shadow-sm lg:col-span-1">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Scan to mark attendance</h2>
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                remaining <= 5
-                  ? "bg-destructive/10 text-destructive"
-                  : "bg-accent text-accent-foreground",
-              )}
-            >
-              <RefreshCw className="mr-1 h-3 w-3" /> {remaining}s
-            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={handleRegenerateQR}
+              >
+                <RefreshCw className="mr-1.5 h-3 w-3" /> Regenerate
+              </Button>
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+                  remaining <= 5
+                    ? "bg-destructive/10 text-destructive"
+                    : "bg-accent text-accent-foreground",
+                )}
+              >
+                {remaining}s
+              </span>
+            </div>
           </div>
           <div className="mt-6 flex flex-col items-center">
             <div className="rounded-xl border border-border bg-background p-4">
-              <QRCodeSVG value={token} size={220} level="M" />
+              {token === "LOADING..." ? (
+                <div className="flex h-[220px] w-[220px] items-center justify-center border-2 border-dashed border-muted text-sm text-muted-foreground">
+                  Loading...
+                </div>
+              ) : (
+                <QRCodeSVG value={token} size={220} level="M" />
+              )}
             </div>
             <p className="mt-4 text-center text-xs text-muted-foreground">
               Code auto-refreshes every {REFRESH_SECONDS} seconds.
@@ -155,7 +261,7 @@ function QRDisplay() {
             <h2 className="font-semibold">Recently scanned</h2>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </div>
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 max-h-[500px] space-y-2 overflow-y-auto pr-2">
             {scans.length === 0 && (
               <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                 Waiting for scans...
@@ -205,25 +311,23 @@ function QRDisplay() {
           <p className="mt-1 text-xs text-muted-foreground">
             Tap a date to toggle it as a declared holiday.
           </p>
-          <div className="mt-4 flex justify-center">
-            <Calendar
-              mode="multiple"
-              selected={holidays}
-              onSelect={(dates) => {
-                // Use local ISO to avoid timezone shift when diffing
-                const prev = new Set(holidays.map(dateToLocalIso));
-                const next = new Set((dates ?? []).map(dateToLocalIso));
-                const added = [...next].find((x) => !prev.has(x));
-                const removed = [...prev].find((x) => !next.has(x));
-                onSelectHoliday(
-                  added ? isoToLocalDate(added)
-                  : removed ? isoToLocalDate(removed)
-                  : undefined
-                );
-              }}
-              disabled={(date) => date < localMidnightToday()}
-              className="pointer-events-auto rounded-md border border-border p-3"
-            />
+          <div className="mt-6 flex w-full justify-center">
+            {mounted ? (
+              <Calendar
+                modifiers={{ selected: isDateSelected }}
+                modifiersClassNames={{
+                  selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-md font-semibold",
+                }}
+                onDayClick={(day, activeModifiers) => {
+                  if (activeModifiers.disabled) return;
+                  onSelectHoliday(day);
+                }}
+                disabled={isDateDisabled}
+                className="pointer-events-auto rounded-xl border border-border p-4 shadow-sm"
+              />
+            ) : (
+              <div className="h-[380px] w-[350px] animate-pulse rounded-xl border border-border bg-muted/20" />
+            )}
           </div>
           <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
@@ -233,10 +337,7 @@ function QRDisplay() {
               variant="ghost"
               size="sm"
               className="ml-auto h-7"
-              onClick={() => {
-                setHolidays([]);
-                setHolidayState([]);
-              }}
+              onClick={handleClearHolidays}
             >
               Clear all
             </Button>
