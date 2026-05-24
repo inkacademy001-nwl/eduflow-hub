@@ -1,17 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useAuth, type Role } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useAuth } from "@/lib/auth";
 import { GraduationCap } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,42 +8,44 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+/* Google "G" SVG logo */
+function GoogleLogo() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+      />
+    </svg>
+  );
+}
+
 function AuthPage() {
-  const { signIn, signUp } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  // Sign in
-  const [siEmail, setSiEmail] = useState("");
-  const [siPwd, setSiPwd] = useState("");
-
-  // Sign up
-  const [suName, setSuName] = useState("");
-  const [suEmail, setSuEmail] = useState("");
-  const [suPwd, setSuPwd] = useState("");
-  const [suRole, setSuRole] = useState<Role>("Coordinator");
-
-  const onSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!siEmail || !siPwd) return toast.error("Enter email and password");
+  const onGoogleSignIn = async () => {
     setLoading(true);
     try {
-      await signIn(siEmail, siPwd);
-      toast.success("Welcome back!");
+      /* Mock Google OAuth — signs in as Owner for demo purposes */
+      await signIn("owner@gmail.com", "password");
+      toast.success("Signed in with Google");
       navigate({ to: "/dashboard" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!suName || !suEmail || !suPwd) return toast.error("Fill all fields");
-    setLoading(true);
-    try {
-      await signUp(suName, suEmail, suPwd, suRole);
-      toast.success("Account created");
-      navigate({ to: "/dashboard" });
+    } catch {
+      toast.error("Google sign-in failed");
     } finally {
       setLoading(false);
     }
@@ -62,100 +53,44 @@ function AuthPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-accent/30 via-background to-background px-4 py-12">
-      <div className="w-full max-w-md">
-        <Link to="/" className="mb-6 flex items-center justify-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <GraduationCap className="h-5 w-5" />
+      <div className="w-full max-w-sm">
+        {/* Brand */}
+        <Link to="/" className="mb-8 flex items-center justify-center gap-2.5">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/30">
+            <GraduationCap className="h-6 w-6" />
           </div>
-          <span className="text-xl font-semibold">Bright Minds</span>
+          <span className="text-2xl font-bold tracking-tight">INK - ACADEMY</span>
         </Link>
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
-          <Tabs defaultValue="signin">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
 
-            <TabsContent value="signin" className="mt-6">
-              <form onSubmit={onSignIn} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="si-email">Email</Label>
-                  <Input
-                    id="si-email"
-                    type="email"
-                    placeholder="you@center.in"
-                    value={siEmail}
-                    onChange={(e) => setSiEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="si-pwd">Password</Label>
-                  <Input
-                    id="si-pwd"
-                    type="password"
-                    placeholder="••••••••"
-                    value={siPwd}
-                    onChange={(e) => setSiPwd(e.target.value)}
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Signing in..." : "Sign In"}
-                </Button>
-                <p className="text-center text-xs text-muted-foreground">
-                  Tip: include "owner" in email to log in as Owner.
-                </p>
-              </form>
-            </TabsContent>
+        {/* Card */}
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+          <div className="mb-6 text-center">
+            <h1 className="text-xl font-semibold">Welcome back</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sign in to access your dashboard
+            </p>
+          </div>
 
-            <TabsContent value="signup" className="mt-6">
-              <form onSubmit={onSignUp} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-name">Full name</Label>
-                  <Input
-                    id="su-name"
-                    placeholder="Jane Doe"
-                    value={suName}
-                    onChange={(e) => setSuName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-email">Email</Label>
-                  <Input
-                    id="su-email"
-                    type="email"
-                    placeholder="you@center.in"
-                    value={suEmail}
-                    onChange={(e) => setSuEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-pwd">Password</Label>
-                  <Input
-                    id="su-pwd"
-                    type="password"
-                    placeholder="••••••••"
-                    value={suPwd}
-                    onChange={(e) => setSuPwd(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Role</Label>
-                  <Select value={suRole} onValueChange={(v) => setSuRole(v as Role)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Owner">Owner</SelectItem>
-                      <SelectItem value="Coordinator">Coordinator</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Creating..." : "Create account"}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+          {/* Divider */}
+          <div className="mb-6 flex items-center gap-3">
+            <span className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground">continue with</span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          {/* Google Sign-In button */}
+          <button
+            onClick={onGoogleSignIn}
+            disabled={loading}
+            className="flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium transition hover:bg-accent hover:border-primary/30 hover:shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-primary" />
+            ) : (
+              <GoogleLogo />
+            )}
+            {loading ? "Signing in…" : "Continue with Google"}
+          </button>
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">

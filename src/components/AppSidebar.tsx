@@ -10,6 +10,8 @@ import {
   UserPlus,
   ChevronDown,
   LogOut,
+  Sun,
+  Moon,
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,11 +35,13 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useAuth } from "@/lib/auth";
+import { useTheme } from "@/lib/theme";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
 export function AppSidebar() {
   const { user, signOut } = useAuth();
+  const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { state } = useSidebar();
@@ -69,7 +73,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">Bright Minds</p>
+              <p className="truncate text-sm font-semibold">INK - ACADEMY</p>
               <p className="truncate text-[10px] text-muted-foreground">Tuition ERP</p>
             </div>
           )}
@@ -165,6 +169,17 @@ export function AppSidebar() {
               <p className="truncate text-[10px] text-muted-foreground">{user?.role}</p>
             </div>
           )}
+          <button
+            onClick={toggle}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </button>
           <button
             onClick={() => {
               signOut();

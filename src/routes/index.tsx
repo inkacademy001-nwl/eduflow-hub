@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { GraduationCap, QrCode, ArrowRight, Users, Calendar, Shield } from "lucide-react";
+import { GraduationCap, QrCode, ArrowRight, Users, Calendar, Shield, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Bright Minds Tuition — Modern ERP for Tuition Centers" },
+      { title: "INK - ACADEMY" },
       {
         name: "description",
         content:
@@ -25,7 +25,7 @@ function Landing() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <GraduationCap className="h-5 w-5" />
             </div>
-            <span className="text-lg font-semibold">Bright Minds</span>
+            <span className="text-lg font-semibold">INK - ACADEMY</span>
           </Link>
           <nav className="flex items-center gap-2">
             <Link to="/qr">
@@ -43,7 +43,7 @@ function Landing() {
       <section className="container mx-auto px-4 py-20 lg:py-28">
         <div className="mx-auto max-w-3xl text-center">
           <span className="inline-flex items-center rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground">
-            Modern ERP for Tuition Centers
+            Powered by NeuralWeb Labs
           </span>
           <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
             Run your tuition center{" "}
@@ -100,11 +100,39 @@ function Landing() {
       </section>
 
       <footer className="border-t border-border bg-card">
-        <div className="container mx-auto flex flex-col items-center justify-between gap-2 px-4 py-6 text-xs text-muted-foreground sm:flex-row">
-          <span className="flex items-center gap-1">
-            <Shield className="h-3.5 w-3.5" /> © {new Date().getFullYear()} Bright Minds Tuition
+        <div className="container mx-auto flex flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-muted-foreground sm:flex-row">
+          {/* Left — brand + year */}
+          <span className="flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5" />
+            &copy; {new Date().getFullYear()} INK Academy
           </span>
-          <span>Built for modern tuition centers.</span>
+
+          {/* Right — developer credits */}
+          <span className="flex items-center gap-3">
+            <span className="text-muted-foreground/60">Developed by</span>
+
+            <a
+              href="https://www.linkedin.com/in/prasanna-saravanan-802071312/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors"
+            >
+              <Linkedin className="h-3.5 w-3.5" />
+              Prasanna Saravanan
+            </a>
+
+            <span className="text-muted-foreground/40">&amp;</span>
+
+            <a
+              href="https://www.linkedin.com/in/kartikeyan-suresh-48738335a"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors"
+            >
+              <Linkedin className="h-3.5 w-3.5" />
+              Kartikeyan Suresh
+            </a>
+          </span>
         </div>
       </footer>
     </div>

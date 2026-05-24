@@ -12,6 +12,8 @@ export interface Student {
   board: string;
   stream?: string;
   subjects: string[];
+  extraActivities?: string[];
+  extraContacts?: { number: string; relation: string }[];
   previousSchool?: string;
   academicYear?: string;
   admissionDate: string;
@@ -37,6 +39,7 @@ export interface Teacher {
   experience?: number;
   salaryType: "daily" | "hourly";
   // daily
+  monthlySalary?: number;
   basicDaily?: number;
   workingDays?: number;
   hra?: number;
@@ -45,6 +48,8 @@ export interface Teacher {
   hourlyRate?: number;
   expectedHours?: number;
   overtimeRate?: number;
+  // shared
+  extraActivities?: string[];
 }
 
 const STUDENT_KEY = "erp_students";
@@ -277,7 +282,8 @@ export function getAttendanceFor(facultyId: string, year: number, month: number)
   const result: DayStatus[] = [];
   for (let d = 1; d <= days; d++) {
     const date = new Date(year, month, d);
-    const iso = date.toISOString().slice(0, 10);
+    // Use local date parts to avoid UTC timezone shift (e.g. IST +5:30 causes toISOString to return previous day)
+    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     if (holidays.has(iso)) {
       result.push("holiday");
       continue;

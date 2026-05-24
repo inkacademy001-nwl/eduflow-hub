@@ -13,12 +13,31 @@ import {
   type ScanEntry,
 } from "@/lib/mock-data";
 import { ArrowLeft, RefreshCw, QrCode, CalendarDays, Clock } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/qr")({
   component: QRDisplay,
 });
 
 const REFRESH_SECONDS = 30;
+
+/** Convert YYYY-MM-DD string → local-midnight Date (avoids UTC shift in IST) */
+function isoToLocalDate(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Convert Date → YYYY-MM-DD using local time parts (no toISOString timezone shift) */
+function dateToLocalIso(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+/** Today at local midnight */
+function localMidnightToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
 function QRDisplay() {
   const [now, setNow] = useState(() => Date.now());
@@ -30,7 +49,7 @@ function QRDisplay() {
 
   useEffect(() => {
     setScans(getScans());
-    setHolidayState(getHolidays().map((d) => new Date(d)));
+    setHolidayState(getHolidays().map(isoToLocalDate));
   }, []);
 
   useEffect(() => {
@@ -71,13 +90,18 @@ function QRDisplay() {
 
   const onSelectHoliday = (date?: Date) => {
     if (!date) return;
-    const iso = date.toISOString().slice(0, 10);
+    // Block past dates
+    if (date < localMidnightToday()) {
+      toast.error("Holidays cannot be marked for past days");
+      return;
+    }
+    const iso = dateToLocalIso(date);
     const existing = new Set(getHolidays());
     if (existing.has(iso)) existing.delete(iso);
     else existing.add(iso);
     const next = Array.from(existing);
     setHolidays(next);
-    setHolidayState(next.map((d) => new Date(d)));
+    setHolidayState(next.map(isoToLocalDate));
   };
 
   return (
@@ -186,15 +210,18 @@ function QRDisplay() {
               mode="multiple"
               selected={holidays}
               onSelect={(dates) => {
-                // Use diff to find the toggled date
-                const prev = new Set(holidays.map((d) => d.toISOString().slice(0, 10)));
-                const next = new Set(
-                  (dates ?? []).map((d) => d.toISOString().slice(0, 10)),
-                );
+                // Use local ISO to avoid timezone shift when diffing
+                const prev = new Set(holidays.map(dateToLocalIso));
+                const next = new Set((dates ?? []).map(dateToLocalIso));
                 const added = [...next].find((x) => !prev.has(x));
                 const removed = [...prev].find((x) => !next.has(x));
-                onSelectHoliday(added ? new Date(added) : removed ? new Date(removed) : undefined);
+                onSelectHoliday(
+                  added ? isoToLocalDate(added)
+                  : removed ? isoToLocalDate(removed)
+                  : undefined
+                );
               }}
+              disabled={(date) => date < localMidnightToday()}
               className="pointer-events-auto rounded-md border border-border p-3"
             />
           </div>
