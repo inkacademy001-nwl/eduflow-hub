@@ -203,7 +203,7 @@ function FacultyCard({
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold">{teacher.fullName}</p>
             <p className="truncate text-xs text-muted-foreground">
-              {teacher.id}
+              {teacher.id}{teacher.timeSlot ? ` • ${teacher.timeSlot}` : ""}
             </p>
           </div>
           <span className="text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100">
@@ -424,7 +424,6 @@ function FacultyModal({
                     <Input
                       type="number"
                       value={bonus}
-                      onBlur={handleSaveSalary}
                       onChange={(e) => setBonus(Number(e.target.value) || 0)}
                       className="h-8 w-24 border-white/10 bg-white/5 text-right text-white"
                     />
@@ -440,7 +439,6 @@ function FacultyModal({
                     <Input
                       type="number"
                       value={deductions}
-                      onBlur={handleSaveSalary}
                       onChange={(e) => setDeductions(Number(e.target.value) || 0)}
                       className="h-8 w-24 border-white/10 bg-white/5 text-right text-white"
                     />
@@ -454,6 +452,14 @@ function FacultyModal({
                       ₹{computedNet.toLocaleString("en-IN")}
                     </span>
                   </div>
+
+                  <Button 
+                    className="w-full mt-2" 
+                    size="sm"
+                    onClick={handleSaveSalary}
+                  >
+                    Save Salary Details
+                  </Button>
                 </div>
               </GlassPanel>
 
@@ -496,18 +502,47 @@ function FacultyModal({
                     label="Total Hours (Month)"
                     value={String(expectedHours)}
                   />
-
-                  <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-3 py-2.5 mt-2">
+                  <div className="flex items-center justify-between border-b border-white/6 pb-2">
+                    <span className="text-white/45">Bonus</span>
+                    <Input
+                      type="number"
+                      value={bonus}
+                      onChange={(e) => setBonus(Number(e.target.value) || 0)}
+                      className="h-8 w-24 border-white/10 bg-white/5 text-right text-white"
+                    />
+                  </div>
+                  <SalaryItem
+                    label="Gross Total"
+                    value={`₹${computedGross.toLocaleString("en-IN")}`}
+                    bold
+                  />
+                  <div className="flex items-center justify-between border-t border-white/8 pt-3">
+                    <span className="text-white/45">Deductions (PF)</span>
+                    <Input
+                      type="number"
+                      value={deductions}
+                      onChange={(e) => setDeductions(Number(e.target.value) || 0)}
+                      className="h-8 w-24 border-white/10 bg-white/5 text-right text-white"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-3 py-2.5">
                     <span className="text-xs font-semibold text-primary">
-                      Total Salary
+                      Net Salary
                     </span>
                     <span className="text-lg font-bold text-primary">
-                      ₹{computedGross.toLocaleString("en-IN")}
+                      ₹{computedNet.toLocaleString("en-IN")}
                     </span>
                   </div>
-                  <p className="text-[10px] text-white/25">
+                  <p className="mt-2 text-[10px] text-white/25">
                     * Based on classes logged this month
                   </p>
+                  <Button 
+                    className="w-full mt-2" 
+                    size="sm"
+                    onClick={handleSaveSalary}
+                  >
+                    Save Salary Details
+                  </Button>
                 </div>
               </GlassPanel>
             </div>
@@ -799,6 +834,8 @@ function DetailTable({ dashboard }: { dashboard: FacultyDashboardData | null }) 
         <thead className="sticky top-0 bg-white/5 text-[10px] uppercase tracking-wider text-white/35">
           <tr>
             <th className="px-2 py-1.5 text-left">Date</th>
+            <th className="px-2 py-1.5 text-left">Check In</th>
+            <th className="px-2 py-1.5 text-left">Check Out</th>
             <th className="px-2 py-1.5 text-left">Status</th>
           </tr>
         </thead>
@@ -810,9 +847,18 @@ function DetailTable({ dashboard }: { dashboard: FacultyDashboardData | null }) 
               month: "short",
               day: "numeric",
             });
+            const formatTime = (isoString?: string | null) => {
+              if (!isoString) return "-";
+              return new Date(isoString).toLocaleTimeString(undefined, {
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+            };
             return (
               <tr key={i} className="border-t border-white/5">
                 <td className="px-2 py-1.5 text-white/55">{label}</td>
+                <td className="px-2 py-1.5 text-white/55">{formatTime(record.inTime)}</td>
+                <td className="px-2 py-1.5 text-white/55">{formatTime(record.outTime)}</td>
                 <td className="px-2 py-1.5 text-white/55 capitalize">
                   {record.status}
                 </td>

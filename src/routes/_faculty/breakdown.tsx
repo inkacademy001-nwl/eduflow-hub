@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import { getTeacherById, getFacultySalarySummary, attendanceSummary } from "@/lib/mock-data";
+import { facultyApi, Teacher, FacultyDashboardData } from "@/lib/faculty-api";
 import { cn } from "@/lib/utils";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export const Route = createFileRoute("/_faculty/breakdown")({
   component: BreakdownPage,
@@ -10,20 +11,45 @@ export const Route = createFileRoute("/_faculty/breakdown")({
 
 function BreakdownPage() {
   const { user } = useAuth();
-  const teacher = useMemo(
-    () => (user?.facultyId ? getTeacherById(user.facultyId) : undefined),
-    [user?.facultyId],
-  );
-  const salary = useMemo(
-    () => (teacher ? getFacultySalarySummary(teacher) : null),
-    [teacher],
-  );
-  const attendance = useMemo(
-    () => (teacher ? attendanceSummary(teacher.id) : null),
-    [teacher],
-  );
+  const [teacher, setTeacher] = useState<Teacher | null>(null);
+  const [dashboard, setDashboard] = useState<FacultyDashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [offset, setOffset] = useState(0);
 
-  if (!teacher || !salary) {
+  useEffect(() => {
+    if (user?.facultyId) {
+      const now = new Date();
+      const targetDate = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+      setLoading(true);
+      Promise.all([
+        facultyApi.fetchFacultyById(user.facultyId),
+        facultyApi.fetchFacultyDashboard(user.facultyId, targetDate.getMonth() + 1, targetDate.getFullYear())
+      ])
+        .then(([t, d]) => {
+          setTeacher(t);
+          setDashboard(d);
+          setLoading(false);
+        })
+        .catch((e) => {
+          console.error(e);
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
+    }
+  }, [user?.facultyId, offset]);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-sm text-muted-foreground">
+          Loading salary breakdown...
+        </div>
+      </div>
+    );
+  }
+
+  if (!teacher || !dashboard) {
     return (
       <div className="container mx-auto px-4 py-6">
         <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-sm text-muted-foreground">
@@ -34,6 +60,9 @@ function BreakdownPage() {
   }
 
   const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+  
+  const now = new Date();
+  const targetDate = new Date(now.getFullYear(), now.getMonth() + offset, 1);
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -41,105 +70,113 @@ function BreakdownPage() {
         <h1 className="text-xl font-semibold tracking-tight">Salary Breakdown</h1>
         <p className="text-sm text-muted-foreground">
           Detailed{" "}
-          {salary.payType === "daily" ? "daily-rate" : "hourly-rate"} breakdown ·{" "}
-          {new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
+          {teacher.salaryType === "daily" ? "daily-rate" : "hourly-rate"} breakdown
         </p>
       </div>
 
       <div className="mx-auto max-w-sm">
+        {/* Month Navigation */}
+        <div className="mb-4 flex items-center justify-between rounded-2xl border border-border bg-card p-3 shadow-sm">
+          <button
+            onClick={() => setOffset((o) => o - 1)}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-accent hover:text-foreground"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="text-sm font-semibold">
+            {targetDate.toLocaleDateString("en-IN", {
+              month: "long",
+              year: "numeric",
+            })}
+          </span>
+          <button
+            onClick={() => setOffset((o) => Math.min(0, o + 1))}
+            disabled={offset >= 0}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-25"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
         {/* Pay type badge */}
         <div className="mb-4 inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-          {salary.payType === "daily" ? "📅 Daily Rate" : "⏱️ Hourly Rate"}
+          {teacher.salaryType === "daily" ? "📅 Daily Basis" : "⏱️ Hourly Basis"}
         </div>
 
         {/* Breakdown card */}
-        <div className="rounded-2xl border border-border bg-card shadow-sm">
-          {/* Breakdown rows */}
-          <div className="divide-y divide-border">
-            {salary.payType === "daily" ? (
-              <>
-                <BreakdownRow label="Daily Rate" value={fmt(salary.dailyRate ?? 0)} />
-                <BreakdownRow label="Working Days" value={String(salary.workingDays ?? 0)} />
-                <BreakdownRow
-                  label="Base Pay"
-                  value={fmt((salary.dailyRate ?? 0) * (salary.workingDays ?? 0))}
-                  sub="Daily Rate × Working Days"
-                />
-                {(salary.hra ?? 0) > 0 && (
-                  <BreakdownRow label="HRA" value={fmt(salary.hra ?? 0)} />
-                )}
-                <BreakdownRow
-                  label="Gross Pay (Basic Pay)"
-                  value={fmt(salary.basicPay)}
-                  bold
-                />
-                <BreakdownRow
-                  label="Deductions (PF)"
-                  value={salary.deductions > 0 ? `- ${fmt(salary.deductions)}` : "None"}
-                  sub={salary.pf ? `Provident Fund: ${fmt(salary.pf)}` : undefined}
-                  negative={salary.deductions > 0}
-                />
-                <BreakdownRow
-                  label="Bonus"
-                  value={salary.bonus > 0 ? `+ ${fmt(salary.bonus)}` : "None"}
-                  positive={salary.bonus > 0}
-                />
-              </>
-            ) : (
-              <>
-                <BreakdownRow label="Hourly Rate" value={fmt(salary.hourlyRate ?? 0)} />
-                <BreakdownRow label="Total Hours Worked" value={String(salary.totalHours ?? 0)} />
-                <BreakdownRow
-                  label="Base Pay"
-                  value={fmt(salary.basicPay)}
-                  sub="Hourly Rate × Total Hours"
-                  bold
-                />
-                {(salary.overtimeRate ?? 0) > 0 && (
+        {dashboard.salary?.isFinalized ? (
+          <div className="rounded-2xl border border-border bg-card shadow-sm">
+            {/* Breakdown rows */}
+            <div className="divide-y divide-border">
+              {teacher.salaryType === "daily" ? (
+                <>
+                  <BreakdownRow label="Monthly Salary" value={fmt(dashboard.salary.basicPay || 0)} />
                   <BreakdownRow
-                    label="Overtime Rate"
-                    value={`${fmt(salary.overtimeRate ?? 0)}/hr`}
-                    sub="For hours beyond expected"
+                    label="Bonus"
+                    value={dashboard.salary.bonus > 0 ? `+ ${fmt(dashboard.salary.bonus)}` : "None"}
+                    positive={dashboard.salary.bonus > 0}
                   />
-                )}
-                <BreakdownRow
-                  label="Bonus"
-                  value={salary.bonus > 0 ? `+ ${fmt(salary.bonus)}` : "None"}
-                  positive={salary.bonus > 0}
-                />
-                <BreakdownRow
-                  label="Deductions"
-                  value={salary.deductions > 0 ? `- ${fmt(salary.deductions)}` : "None"}
-                  negative={salary.deductions > 0}
-                />
-              </>
-            )}
-          </div>
+                  <BreakdownRow
+                    label="Deductions (PF)"
+                    value={dashboard.salary.deductions > 0 ? `- ${fmt(dashboard.salary.deductions)}` : "None"}
+                    negative={dashboard.salary.deductions > 0}
+                  />
+                </>
+              ) : (
+                <>
+                  <BreakdownRow label="Hourly Rate" value={fmt(dashboard.salary.hourlyRate ?? 0)} />
+                  <BreakdownRow label="Total Hours Worked" value={String(dashboard.salary.totalHours ?? 0)} />
+                  <BreakdownRow
+                    label="Base Pay"
+                    value={fmt((dashboard.salary.hourlyRate ?? 0) * (dashboard.salary.totalHours ?? 0))}
+                    sub="Hourly Rate × Total Hours"
+                    bold
+                  />
+                  <BreakdownRow
+                    label="Bonus"
+                    value={dashboard.salary.bonus > 0 ? `+ ${fmt(dashboard.salary.bonus)}` : "None"}
+                    positive={dashboard.salary.bonus > 0}
+                  />
+                  <BreakdownRow
+                    label="Deductions"
+                    value={dashboard.salary.deductions > 0 ? `- ${fmt(dashboard.salary.deductions)}` : "None"}
+                    negative={dashboard.salary.deductions > 0}
+                  />
+                </>
+              )}
+            </div>
 
-          {/* Final Salary */}
-          <div className="border-t-2 border-primary/20 bg-gradient-to-r from-primary/5 to-transparent p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-primary">Final Salary</span>
-              <span className="text-2xl font-extrabold text-primary">
-                {fmt(salary.netSalary)}
-              </span>
+            {/* Final Salary */}
+            <div className="border-t-2 border-primary/20 bg-gradient-to-r from-primary/5 to-transparent p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold text-primary">Final Salary</span>
+                <span className="text-2xl font-extrabold text-primary">
+                  {fmt(dashboard.salary.finalSalary || 0)}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Attendance summary */}
-        {attendance && (
-          <div className="mt-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Attendance This Month
+        ) : (
+          <div className="mb-4 rounded-2xl border border-dashed border-border bg-card p-8 text-center shadow-sm">
+            <p className="text-sm font-medium text-muted-foreground">
+              Salary details for this month have not been finalized yet.
             </p>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <MiniStat label="Present" value={attendance.present} color="text-emerald-600 dark:text-emerald-400" bg="bg-emerald-500/10" />
-              <MiniStat label="Absent" value={attendance.absent} color="text-red-600 dark:text-red-400" bg="bg-red-500/10" />
-              <MiniStat label="Late" value={attendance.late} color="text-amber-600 dark:text-amber-400" bg="bg-amber-500/10" />
-            </div>
+            <p className="mt-1 text-xs text-muted-foreground/70">
+              Please check back after it is processed.
+            </p>
           </div>
         )}
+
+        {/* Attendance summary */}
+        <div className="mt-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Attendance This Month
+          </p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <MiniStat label="Present" value={dashboard.attendanceStats.present} color="text-emerald-600 dark:text-emerald-400" bg="bg-emerald-500/10" />
+            <MiniStat label="Absent" value={dashboard.attendanceStats.absent} color="text-red-600 dark:text-red-400" bg="bg-red-500/10" />
+            <MiniStat label="Late" value={dashboard.attendanceStats.late} color="text-amber-600 dark:text-amber-400" bg="bg-amber-500/10" />
+          </div>
+        </div>
       </div>
     </div>
   );

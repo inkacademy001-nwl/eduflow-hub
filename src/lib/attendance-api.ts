@@ -14,9 +14,24 @@ export interface HolidayEntry {
   isActive: boolean;
 }
 
+export interface CalendarDayData {
+  day: number;
+  date: string;
+  status: "PRESENT" | "ABSENT" | "LATE" | "HOLIDAY" | "EMPTY";
+  inTime?: string | null;
+  outTime?: string | null;
+  totalHours?: number | null;
+}
+
 export const attendanceApi = {
   fetchQrToken: async () => {
     return api.get("/api/attendance/qr");
+  },
+
+  fetchCalendar: async (facultyId: number | string, month: number, year: number) => {
+    const rawId = typeof facultyId === "string" ? facultyId.replace("FAC-", "") : facultyId;
+    const res = await api.get(`/api/attendance/calendar?facultyId=${rawId}&month=${month}&year=${year}`);
+    return res as { data: CalendarDayData[] };
   },
 
   submitScan: async (payload: { token: string; facultyId: number }) => {

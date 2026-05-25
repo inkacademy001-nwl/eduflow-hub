@@ -1,12 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import {
-  getTeacherById,
-  attendanceSummary,
-  getAttendanceFor,
-  type DayStatus,
-} from "@/lib/mock-data";
+import { facultyApi, Teacher, FacultyDashboardData } from "@/lib/faculty-api";
+import { attendanceApi, CalendarDayData } from "@/lib/attendance-api";
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft,
@@ -14,7 +10,6 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
-  Calendar,
   Clock,
 } from "lucide-react";
 
@@ -24,17 +19,50 @@ export const Route = createFileRoute("/_faculty/salary")({
 
 function FacultyAttendancePage() {
   const { user } = useAuth();
-  const teacher = useMemo(
-    () => (user?.facultyId ? getTeacherById(user.facultyId) : undefined),
-    [user?.facultyId],
-  );
-  const summary = useMemo(
-    () => (teacher ? attendanceSummary(teacher.id) : null),
-    [teacher],
-  );
-  const [showDetail, setShowDetail] = useState(false);
+  const [teacher, setTeacher] = useState<Teacher | null>(null);
+  const [dashboard, setDashboard] = useState<FacultyDashboardData | null>(null);
+  const [calendarData, setCalendarData] = useState<CalendarDayData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!teacher || !summary) {
+  const [showDetail, setShowDetail] = useState(false);
+  const [offset, setOffset] = useState(0);
+
+  useEffect(() => {
+    if (user?.facultyId) {
+      const now = new Date();
+      const targetDate = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+      
+      Promise.all([
+        facultyApi.fetchFacultyById(user.facultyId),
+        facultyApi.fetchFacultyDashboard(user.facultyId, targetDate.getMonth() + 1, targetDate.getFullYear()),
+        attendanceApi.fetchCalendar(user.facultyId, targetDate.getMonth() + 1, targetDate.getFullYear())
+      ])
+        .then(([t, d, cal]) => {
+          setTeacher(t);
+          setDashboard(d);
+          setCalendarData(cal.data);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error(err);
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
+    }
+  }, [user?.facultyId, offset]);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-sm text-muted-foreground">
+          Loading attendance data...
+        </div>
+      </div>
+    );
+  }
+
+  if (!teacher || !dashboard) {
     return (
       <div className="container mx-auto px-4 py-6">
         <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-sm text-muted-foreground">
@@ -47,6 +75,7 @@ function FacultyAttendancePage() {
   const isDaily = teacher.salaryType === "daily";
   const expectedHours = teacher.expectedHours ?? 0;
   const weekHours = Math.round(expectedHours / 4);
+  const summary = dashboard.attendanceStats;
   const totalDays = summary.present + summary.absent + summary.late;
 
   return (
@@ -157,7 +186,11 @@ function FacultyAttendancePage() {
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Attendance Calendar
           </p>
-          <AttendanceCalendar facultyId={teacher.id} />
+          <AttendanceCalendar 
+            offset={offset} 
+            setOffset={setOffset} 
+            calendarData={calendarData} 
+          />
         </div>
 
         {/* Detailed Info Toggle */}
@@ -176,7 +209,12 @@ function FacultyAttendancePage() {
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             )}
           </button>
-          {showDetail && <DetailTable facultyId={teacher.id} />}
+          {showDetail && (
+            <DetailTable 
+              calendarData={calendarData} 
+              isDaily={isDaily} 
+            />
+          )}
         </div>
 
         {/* Faculty Info */}
@@ -261,15 +299,17 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 /* ─── Attendance Calendar ────────────────────────────────────────────────── */
-function AttendanceCalendar({ facultyId }: { facultyId: string }) {
+function AttendanceCalendar({ 
+  offset, 
+  setOffset, 
+  calendarData 
+}: { 
+  offset: number; 
+  setOffset: (o: number | ((prev: number) => number)) => void; 
+  calendarData: CalendarDayData[];
+}) {
   const now = new Date();
-  const [offset, setOffset] = useState(0);
   const targetDate = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-  const arr = getAttendanceFor(
-    facultyId,
-    targetDate.getFullYear(),
-    targetDate.getMonth(),
-  );
 
   const firstDow = targetDate.getDay();
   const DAY_HEADERS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -316,8 +356,8 @@ function AttendanceCalendar({ facultyId }: { facultyId: string }) {
         {Array.from({ length: firstDow }).map((_, i) => (
           <div key={`pad-${i}`} />
         ))}
-        {arr.map((status, i) => (
-          <CalendarDay key={i} day={i + 1} status={status} />
+        {calendarData.map((d, i) => (
+          <CalendarDay key={i} day={d.day} status={d.status === "EMPTY" ? "none" : d.status.toLowerCase() as any} />
         ))}
       </div>
 
@@ -349,7 +389,7 @@ function AttendanceCalendar({ facultyId }: { facultyId: string }) {
 }
 
 /* ─── Single calendar day cell ──────────────────────────────────────────── */
-function CalendarDay({ day, status }: { day: number; status: DayStatus }) {
+function CalendarDay({ day, status }: { day: number; status: "present" | "absent" | "late" | "holiday" | "none" }) {
   if (status === "none") {
     return (
       <div className="flex flex-col items-center py-0.5">
@@ -398,9 +438,19 @@ function CalendarDay({ day, status }: { day: number; status: DayStatus }) {
 }
 
 /* ─── Detailed attendance table ──────────────────────────────────────────── */
-function DetailTable({ facultyId }: { facultyId: string }) {
-  const now = new Date();
-  const arr = getAttendanceFor(facultyId, now.getFullYear(), now.getMonth());
+function DetailTable({ 
+  calendarData,
+  isDaily
+}: { 
+  calendarData: CalendarDayData[];
+  isDaily: boolean;
+}) {
+  const formatTime = (isoString?: string | null) => {
+    if (!isoString) return "—";
+    const date = new Date(isoString);
+    return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
   return (
     <div className="mt-3 max-h-56 overflow-y-auto rounded-xl border border-border">
       <table className="w-full text-xs">
@@ -410,28 +460,30 @@ function DetailTable({ facultyId }: { facultyId: string }) {
             <th className="px-3 py-2 text-left">Status</th>
             <th className="px-3 py-2 text-left">Check-in</th>
             <th className="px-3 py-2 text-left">Check-out</th>
+            {!isDaily && <th className="px-3 py-2 text-left">Total Hrs</th>}
           </tr>
         </thead>
         <tbody>
-          {arr.map((s, i) => {
-            const d = new Date(now.getFullYear(), now.getMonth(), i + 1);
-            const label = d.toLocaleDateString(undefined, {
+          {calendarData.filter(d => d.status !== "EMPTY").map((d, i) => {
+            const dt = new Date(d.date);
+            const label = dt.toLocaleDateString(undefined, {
               weekday: "short",
               month: "short",
               day: "numeric",
             });
             const statusLabel =
-              s === "present" ? "Present"
-              : s === "absent" ? "Absent"
-              : s === "late" ? "Late"
-              : s === "holiday" ? "Holiday"
+              d.status === "PRESENT" ? "Present"
+              : d.status === "ABSENT" ? "Absent"
+              : d.status === "LATE" ? "Late"
+              : d.status === "HOLIDAY" ? "Holiday"
               : "—";
             const statusColor =
-              s === "present" ? "text-emerald-600 dark:text-emerald-400"
-              : s === "absent" ? "text-red-600 dark:text-red-400"
-              : s === "late" ? "text-amber-600 dark:text-amber-400"
-              : s === "holiday" ? "text-violet-600 dark:text-violet-400"
+              d.status === "PRESENT" ? "text-emerald-600 dark:text-emerald-400"
+              : d.status === "ABSENT" ? "text-red-600 dark:text-red-400"
+              : d.status === "LATE" ? "text-amber-600 dark:text-amber-400"
+              : d.status === "HOLIDAY" ? "text-violet-600 dark:text-violet-400"
               : "text-muted-foreground";
+              
             return (
               <tr key={i} className="border-t border-border">
                 <td className="px-3 py-2 text-muted-foreground">{label}</td>
@@ -439,18 +491,26 @@ function DetailTable({ facultyId }: { facultyId: string }) {
                   {statusLabel}
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">
-                  {s === "present" || s === "late"
-                    ? "09:" + (s === "late" ? "32" : "02")
-                    : "—"}
+                  {formatTime(d.inTime)}
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">
-                  {s === "present" || s === "late" ? "17:05" : "—"}
+                  {formatTime(d.outTime)}
                 </td>
+                {!isDaily && (
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {d.totalHours ? d.totalHours : "—"}
+                  </td>
+                )}
               </tr>
             );
           })}
         </tbody>
       </table>
+      {calendarData.filter(d => d.status !== "EMPTY").length === 0 && (
+        <div className="py-4 text-center text-muted-foreground">
+          No records found.
+        </div>
+      )}
     </div>
   );
 }

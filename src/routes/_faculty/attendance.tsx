@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
-import { getHolidays } from "@/lib/mock-data";
+import { attendanceApi } from "@/lib/attendance-api";
 import { Camera, CheckCircle2, XCircle, AlertTriangle, CircleDot, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,46 +53,28 @@ function AttendancePage() {
     }
   }, []);
 
-  // Mock scan handler
   const handleQRData = useCallback(
-    (data: string) => {
-      // Check if valid QR (our tokens start with "BMT|")
-      if (!data.startsWith("BMT|")) {
-        setScanState({ status: "invalid" });
-        return;
-      }
+    async (data: string) => {
+      if (!user?.facultyId) return;
 
-      // Extract token timestamp
-      const match = data.match(/t=(\d+)/);
-      if (!match) {
-        setScanState({ status: "invalid" });
-        return;
-      }
-      const tokenTime = parseInt(match[1], 10);
-      const now = Math.floor(Date.now() / 1000);
-      // Token valid for 30s window
-      if (Math.abs(now - tokenTime) > 60) {
-        setScanState({ status: "invalid" });
-        return;
-      }
+      const rawId = typeof user.facultyId === "string" 
+        ? parseInt(user.facultyId.replace("FAC-", ""), 10) 
+        : user.facultyId;
 
-      // Check if today is a holiday
-      const today = new Date();
-      const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      if (getHolidays().includes(iso)) {
-        setScanState({ status: "holiday" });
-        return;
-      }
+      try {
+        const response = await attendanceApi.submitScan({
+          token: data,
+          facultyId: rawId
+        });
 
-      // Mock check-in / check-out toggle
-      const lastScanKey = `faculty_last_scan_${user?.facultyId}`;
-      const lastScan = localStorage.getItem(lastScanKey);
-      if (lastScan === "in") {
-        localStorage.setItem(lastScanKey, "out");
-        setScanState({ status: "check-out" });
-      } else {
-        localStorage.setItem(lastScanKey, "in");
-        setScanState({ status: "check-in" });
+        if (response.type === "IN") {
+          setScanState({ status: "check-in" });
+        } else if (response.type === "OUT") {
+          setScanState({ status: "check-out" });
+        }
+      } catch (err: any) {
+        // Backend returns error if token is invalid/expired or attendance is already completed
+        setScanState({ status: "invalid" });
       }
     },
     [user?.facultyId],
