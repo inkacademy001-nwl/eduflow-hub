@@ -31,6 +31,7 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
+  Calculator,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -102,7 +103,7 @@ function FacultyPage() {
       t.classes.join(", "),
       t.salaryType === "daily" ? "Daily (Monthly)" : "Hourly",
       t.salaryType === "daily"
-        ? (t.monthlySalary ?? (t.basicDaily ?? 0) * (t.workingDays ?? 0))
+        ? (t.monthlySalary ?? 0)
         : (t.hourlyRate ?? 0),
       t.joiningDate,
     ]);
@@ -134,24 +135,26 @@ function FacultyPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div className="container mx-auto px-4 py-8 max-w-[1400px]">
+      <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Faculty</h1>
           <p className="text-sm text-muted-foreground">
             {list.length} {tab} faculty
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {user.role !== "Faculty" && <DeductionConfigForm />}
           <Button variant="outline" size="sm" onClick={onExportSheets}>
-            <SheetIcon className="mr-2 h-4 w-4" /> Export to Google Sheets
+            <SheetIcon className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Export to Google Sheets</span>
+            <span className="sm:hidden">Export</span>
           </Button>
         </div>
       </div>
 
-      <div className="mb-6 flex items-center justify-between">
-        <div className="inline-flex items-center rounded-full border border-border bg-card p-1 shadow-sm">
+      <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-center justify-between">
+        <div className="inline-flex items-center rounded-full border border-border bg-card p-1 shadow-sm overflow-x-auto max-w-full">
           {(["daily", "hourly"] as const).map((t) => (
             <button
               key={t}
@@ -176,14 +179,17 @@ function FacultyPage() {
         {user.role !== "Faculty" && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button disabled={finalizingSalaries}>
+              <Button disabled={finalizingSalaries} size="sm" className="w-full sm:w-auto">
                 {finalizingSalaries ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Finalizing...
                   </>
                 ) : (
                   <>
-                    <SheetIcon className="mr-2 h-4 w-4" /> Finalize All Salaries
+                    <Calculator className="h-4 w-4 sm:mr-2" /> 
+                    <span className="hidden sm:inline">Finalize All Salaries</span>
+                    <span className="sm:hidden">Finalize</span>
                   </>
                 )}
               </Button>
@@ -362,7 +368,7 @@ function FacultyCard({
   const late = teacher.attendanceStats?.late || 0;
   const isDaily = teacher.salaryType === "daily";
   const expectedHours = teacher.expectedHours ?? 0;
-  const weekHours = Math.round(expectedHours / 4);
+  const weekHours = teacher.weekHours ?? 0;
 
   return (
     <button
@@ -461,7 +467,23 @@ function FacultyModal({
   const computedNet = Math.round(computedGross - deductions);
 
   const expectedHours = dashboard?.salary.totalHours ?? 0;
-  const weekHours = Math.round(expectedHours / 4);
+
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  endOfWeek.setHours(23, 59, 59, 999);
+
+  const weekHours = dashboard?.calendar.reduce((acc, curr) => {
+    const d = new Date(curr.date);
+    if (d >= startOfWeek && d <= endOfWeek) {
+      return acc + (curr.totalHours || 0);
+    }
+    return acc;
+  }, 0) ?? 0;
 
   const onDelete = async () => {
     if (!confirm(`Delete ${teacher.fullName}?`)) return;
@@ -496,7 +518,7 @@ function FacultyModal({
       >
         {/* ── Modal header ── */}
         <div
-          className="sticky top-0 z-10 flex items-center justify-between px-6 py-4"
+          className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4"
           style={{
             background: "rgba(10,10,20,0.92)",
             backdropFilter: "blur(28px)",
@@ -521,11 +543,11 @@ function FacultyModal({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <Button
               size="sm"
               variant="outline"
-              className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+              className="border-white/10 bg-white/5 text-white hover:bg-white/10 px-2 sm:px-3"
               onClick={() =>
                 navigate({
                   to: "/admissions/edit-teacher/$id",
@@ -533,15 +555,17 @@ function FacultyModal({
                 })
               }
             >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" /> Update
+              <Pencil className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Update</span>
             </Button>
             <Button
               size="sm"
               variant="outline"
-              className="border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+              className="border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 px-2 sm:px-3"
               onClick={onDelete}
             >
-              <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
+              <Trash2 className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Delete</span>
             </Button>
             <button
               onClick={onClose}
@@ -649,8 +673,8 @@ function FacultyModal({
               </GlassPanel>
             </div>
           ) : (
-            /* Hourly: 2 columns */
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            /* Hourly: 3 columns */
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {/* Col 1 – Hours */}
               <GlassPanel title="Hours Overview">
                 <div className="space-y-4">
@@ -669,6 +693,20 @@ function FacultyModal({
                     </p>
                   </div>
                 </div>
+
+                {/* Detailed Info */}
+                <button
+                  onClick={() => setShowDetail((v) => !v)}
+                  className="mt-4 inline-flex items-center text-xs font-medium text-primary hover:underline"
+                >
+                  {showDetail ? "Hide details" : "Detailed Info"}
+                  {showDetail ? (
+                    <ChevronUp className="ml-1 h-3 w-3" />
+                  ) : (
+                    <ChevronDown className="ml-1 h-3 w-3" />
+                  )}
+                </button>
+                {showDetail && <DetailTable dashboard={dashboard} />}
               </GlassPanel>
 
               {/* Col 2 – Salary split */}
@@ -724,6 +762,11 @@ function FacultyModal({
                     Save Salary Details
                   </Button>
                 </div>
+              </GlassPanel>
+
+              {/* Col 3 – Attendance calendar */}
+              <GlassPanel title="Attendance Calendar">
+                <AttendanceCalendar dashboard={dashboard} />
               </GlassPanel>
             </div>
           )}
@@ -923,6 +966,8 @@ function AttendanceCalendar({ dashboard }: { dashboard: FacultyDashboardData | n
 }
 
 /* ─── Single calendar day cell ──────────────────────────────────────────── */
+type DayStatus = "Present" | "Absent" | "Late" | "Holiday" | "none" | null;
+
 function CalendarDay({ day, status }: { day: number; status: DayStatus }) {
   if (status === "none") {
     // Sunday / future – dim number only
@@ -933,7 +978,7 @@ function CalendarDay({ day, status }: { day: number; status: DayStatus }) {
     );
   }
 
-  if (status === "present") {
+  if (status === "Present") {
     // Blue circle with checkmark (matching reference image)
     return (
       <div className="flex flex-col items-center py-0.5">
@@ -944,7 +989,7 @@ function CalendarDay({ day, status }: { day: number; status: DayStatus }) {
     );
   }
 
-  if (status === "absent") {
+  if (status === "Absent") {
     // Day number + red dot below
     return (
       <div className="flex flex-col items-center py-0.5">
@@ -954,7 +999,7 @@ function CalendarDay({ day, status }: { day: number; status: DayStatus }) {
     );
   }
 
-  if (status === "late") {
+  if (status === "Late") {
     // Yellow circle with checkmark — same shape as present but amber/yellow
     return (
       <div className="flex flex-col items-center py-0.5">
@@ -965,7 +1010,7 @@ function CalendarDay({ day, status }: { day: number; status: DayStatus }) {
     );
   }
 
-  if (status === "holiday") {
+  if (status === "Holiday") {
     // Violet-tinted number cell
     return (
       <div className="flex flex-col items-center py-0.5">
@@ -1021,7 +1066,7 @@ function DetailTable({ dashboard }: { dashboard: FacultyDashboardData | null }) 
         </thead>
         <tbody>
           {dashboard.calendar.map((record, i) => {
-            if (record.status === "none" || !record.status) return null;
+            if (!record.status) return null;
             const d = new Date(record.date);
             const label = d.toLocaleDateString(undefined, {
               month: "short",

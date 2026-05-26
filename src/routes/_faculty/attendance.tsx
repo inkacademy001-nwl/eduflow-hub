@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
 import { attendanceApi } from "@/lib/attendance-api";
-import { Camera, CheckCircle2, XCircle, AlertTriangle, CircleDot, RotateCcw } from "lucide-react";
+import { Camera, CheckCircle2, XCircle, AlertTriangle, CircleDot, RotateCcw, SwitchCamera } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_faculty/attendance")({
@@ -24,6 +24,7 @@ function AttendancePage() {
   const streamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number>(0);
   const [scanState, setScanState] = useState<ScanState>({ status: "scanning" });
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [jsQRModule, setJsQRModule] = useState<any>(null);
 
   // Dynamically load jsQR
@@ -37,10 +38,13 @@ function AttendancePage() {
     streamRef.current = null;
   }, []);
 
-  const startCamera = useCallback(async () => {
+  const startCamera = useCallback(async (mode: "environment" | "user") => {
     try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 720 } },
       });
       streamRef.current = stream;
       if (videoRef.current) {
@@ -130,11 +134,11 @@ function AttendancePage() {
     };
   }, [scanState.status, jsQRModule, handleQRData]);
 
-  // Start camera on mount
+  // Start camera on mount & mode change
   useEffect(() => {
-    startCamera();
+    startCamera(facingMode);
     return () => stopCamera();
-  }, [startCamera, stopCamera]);
+  }, [facingMode, startCamera, stopCamera]);
 
   // Auto-reset after result
   useEffect(() => {
@@ -196,7 +200,7 @@ function AttendancePage() {
             Camera access is required to scan QR. Please allow camera permission in your browser settings.
           </p>
           <button
-            onClick={startCamera}
+            onClick={() => startCamera(facingMode)}
             className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
           >
             <RotateCcw className="h-4 w-4" />
@@ -217,17 +221,29 @@ function AttendancePage() {
 
             {/* Scan frame overlay */}
             {scanState.status === "scanning" && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="relative h-48 w-48">
-                  {/* Corner brackets */}
-                  <span className="absolute left-0 top-0 h-6 w-6 border-l-[3px] border-t-[3px] border-primary rounded-tl" />
-                  <span className="absolute right-0 top-0 h-6 w-6 border-r-[3px] border-t-[3px] border-primary rounded-tr" />
-                  <span className="absolute bottom-0 left-0 h-6 w-6 border-b-[3px] border-l-[3px] border-primary rounded-bl" />
-                  <span className="absolute bottom-0 right-0 h-6 w-6 border-b-[3px] border-r-[3px] border-primary rounded-br" />
-                  {/* Scanning line animation */}
-                  <span className="absolute left-2 right-2 top-1/2 h-0.5 -translate-y-1/2 animate-pulse bg-primary/60" />
+              <>
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="relative h-48 w-48">
+                    {/* Corner brackets */}
+                    <span className="absolute left-0 top-0 h-6 w-6 border-l-[3px] border-t-[3px] border-primary rounded-tl" />
+                    <span className="absolute right-0 top-0 h-6 w-6 border-r-[3px] border-t-[3px] border-primary rounded-tr" />
+                    <span className="absolute bottom-0 left-0 h-6 w-6 border-b-[3px] border-l-[3px] border-primary rounded-bl" />
+                    <span className="absolute bottom-0 right-0 h-6 w-6 border-b-[3px] border-r-[3px] border-primary rounded-br" />
+                    {/* Scanning line animation */}
+                    <span className="absolute left-2 right-2 top-1/2 h-0.5 -translate-y-1/2 animate-pulse bg-primary/60" />
+                  </div>
                 </div>
-              </div>
+                {/* Flip camera button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
+                  }}
+                  className="absolute bottom-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition hover:bg-black/70"
+                >
+                  <SwitchCamera className="h-5 w-5" />
+                </button>
+              </>
             )}
 
             {/* Result overlay */}

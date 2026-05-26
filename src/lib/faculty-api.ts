@@ -29,11 +29,12 @@ export interface Teacher {
   extraActivities?: string[];
   attendanceStats?: { present: number; absent: number; late: number };
   expectedHours?: number;
+  weekHours?: number;
 }
 
 export interface FacultyDashboardData {
   attendanceStats: { present: number; absent: number; late: number };
-  calendar: { date: string; status: "Present" | "Absent" | "Late" | "Holiday" | null; inTime?: string | null; outTime?: string | null }[];
+  calendar: { date: string; status: "Present" | "Absent" | "Late" | "Holiday" | null; inTime?: string | null; outTime?: string | null; totalHours?: number | null }[];
   salary: {
     basicPay: number | null;
     hourlyRate: number | null;
@@ -137,6 +138,7 @@ export function mapFacultyResponse(backendFaculty: any): Teacher {
     hourlyRate: backendFaculty.workConfig?.hourlyRate,
     extraActivities: backendFaculty.academic?.extraActivities || [],
     attendanceStats: backendFaculty.attendanceStats,
-    expectedHours: backendFaculty.expectedHours || 0
+    expectedHours: backendFaculty.expectedHours || 0,
+    weekHours: backendFaculty.weekHours || 0
   };
 }

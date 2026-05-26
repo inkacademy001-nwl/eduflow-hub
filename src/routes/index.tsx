@@ -21,20 +21,23 @@ function Landing() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <GraduationCap className="h-5 w-5" />
+          <Link to="/" className="flex items-center gap-2 shrink-0">
+            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <span className="text-lg font-semibold">INK - ACADEMY</span>
+            <span className="text-base sm:text-lg font-semibold tracking-tight whitespace-nowrap">
+              INK <span className="hidden sm:inline">- ACADEMY</span>
+            </span>
           </Link>
-          <nav className="flex items-center gap-2">
+          <nav className="flex items-center gap-1 sm:gap-2">
             <Link to="/qr">
-              <Button variant="ghost" size="sm">
-                <QrCode className="mr-2 h-4 w-4" /> Attendance QR
+              <Button variant="ghost" size="sm" className="px-2 sm:px-3">
+                <QrCode className="h-4 w-4 sm:mr-2" /> 
+                <span className="hidden sm:inline">Attendance QR</span>
               </Button>
             </Link>
             <Link to="/auth">
-              <Button size="sm">Sign In</Button>
+              <Button size="sm" className="px-3">Sign In</Button>
             </Link>
           </nav>
         </div>
@@ -100,16 +103,16 @@ function Landing() {
       </section>
 
       <footer className="border-t border-border bg-card">
-        <div className="container mx-auto flex flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-muted-foreground sm:flex-row">
+        <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 py-6 text-xs text-muted-foreground sm:flex-row">
           {/* Left — brand + year */}
-          <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1.5 shrink-0">
             <Shield className="h-3.5 w-3.5" />
             &copy; {new Date().getFullYear()} INK Academy
           </span>
 
           {/* Right — developer credits */}
-          <span className="flex items-center gap-3">
-            <span className="text-muted-foreground/60">Developed by</span>
+          <span className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+            <span className="text-muted-foreground/60 w-full text-center sm:w-auto">Developed by</span>
 
             <a
               href="https://www.linkedin.com/in/prasanna-saravanan-802071312/"
@@ -118,10 +121,10 @@ function Landing() {
               className="inline-flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors"
             >
               <Linkedin className="h-3.5 w-3.5" />
-              Prasanna Saravanan
+              Prasanna
             </a>
 
-            <span className="text-muted-foreground/40">&amp;</span>
+            <span className="text-muted-foreground/40 hidden sm:inline">&amp;</span>
 
             <a
               href="https://www.linkedin.com/in/kartikeyan-suresh-48738335a"
@@ -130,7 +133,7 @@ function Landing() {
               className="inline-flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors"
             >
               <Linkedin className="h-3.5 w-3.5" />
-              Kartikeyan Suresh
+              Kartikeyan
             </a>
           </span>
         </div>

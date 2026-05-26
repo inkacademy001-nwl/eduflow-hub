@@ -74,12 +74,30 @@ function FacultyAttendancePage() {
 
   const isDaily = teacher.salaryType === "daily";
   const expectedHours = teacher.expectedHours ?? 0;
-  const weekHours = Math.round(expectedHours / 4);
   const summary = dashboard.attendanceStats;
   const totalDays = summary.present + summary.absent + summary.late;
 
   const now = new Date();
   const targetDate = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  endOfWeek.setHours(23, 59, 59, 999);
+
+  const monthHours = calendarData.reduce((acc, curr) => acc + (curr.totalHours || 0), 0);
+  const weekHours = offset === 0 
+    ? calendarData.reduce((acc, curr) => {
+        const d = new Date(curr.date);
+        if (d >= startOfWeek && d <= endOfWeek) {
+          return acc + (curr.totalHours || 0);
+        }
+        return acc;
+      }, 0)
+    : Math.round(monthHours / 4);
 
   let isPrevDisabled = false;
   if (teacher?.joiningDate) {
@@ -148,7 +166,7 @@ function FacultyAttendancePage() {
                 </p>
               </div>
               <div className="rounded-xl bg-primary/10 p-4 text-center">
-                <p className="text-3xl font-bold text-primary">{expectedHours}</p>
+                <p className="text-3xl font-bold text-primary">{monthHours}</p>
                 <p className="mt-0.5 text-[10px] uppercase tracking-widest text-muted-foreground">
                   Hours / Month
                 </p>
