@@ -1,10 +1,12 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useEffect } from "react";
 import {
   studentApi,
   type Student,
 } from "@/lib/student-api";
+import { useAuth } from "@/lib/auth";
+import { canAccess } from "@/config/rolePermissions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,6 +62,11 @@ const subjectsForClass = (cls: number): string[] => {
 };
 
 function StudentsPage() {
+  const { user } = useAuth();
+  if (!user || !canAccess(user.role, "students")) {
+    return <Navigate to={user?.role === "Faculty" ? "/" : "/dashboard"} replace />;
+  }
+
   const navigate = useNavigate();
   const [, force] = useState({});
   const refresh = () => force({});

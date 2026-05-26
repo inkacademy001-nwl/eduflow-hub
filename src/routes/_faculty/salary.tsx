@@ -78,17 +78,55 @@ function FacultyAttendancePage() {
   const summary = dashboard.attendanceStats;
   const totalDays = summary.present + summary.absent + summary.late;
 
+  const now = new Date();
+  const targetDate = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+
+  let isPrevDisabled = false;
+  if (teacher?.joiningDate) {
+    const joinDate = new Date(teacher.joiningDate);
+    if (
+      targetDate.getFullYear() < joinDate.getFullYear() ||
+      (targetDate.getFullYear() === joinDate.getFullYear() && targetDate.getMonth() <= joinDate.getMonth())
+    ) {
+      isPrevDisabled = true;
+    }
+  }
+
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="mb-5">
         <h1 className="text-xl font-semibold tracking-tight">My Attendance</h1>
         <p className="text-sm text-muted-foreground">
-          {new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" })} ·{" "}
+          {targetDate.toLocaleDateString("en-IN", { month: "long", year: "numeric" })} ·{" "}
           {teacher.fullName}
         </p>
       </div>
 
       <div className="mx-auto max-w-sm space-y-4">
+        {/* Month Navigation */}
+        <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-3 shadow-sm">
+          <button
+            onClick={() => setOffset((o) => o - 1)}
+            disabled={isPrevDisabled}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-25"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="text-sm font-semibold">
+            {targetDate.toLocaleDateString("en-IN", {
+              month: "long",
+              year: "numeric",
+            })}
+          </span>
+          <button
+            onClick={() => setOffset((o) => Math.min(0, o + 1))}
+            disabled={offset >= 0}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-25"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
         {/* Attendance Stats */}
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -188,7 +226,6 @@ function FacultyAttendancePage() {
           </p>
           <AttendanceCalendar 
             offset={offset} 
-            setOffset={setOffset} 
             calendarData={calendarData} 
           />
         </div>
@@ -301,11 +338,9 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 /* ─── Attendance Calendar ────────────────────────────────────────────────── */
 function AttendanceCalendar({ 
   offset, 
-  setOffset, 
   calendarData 
 }: { 
   offset: number; 
-  setOffset: (o: number | ((prev: number) => number)) => void; 
   calendarData: CalendarDayData[];
 }) {
   const now = new Date();
@@ -316,29 +351,6 @@ function AttendanceCalendar({
 
   return (
     <div>
-      {/* Month navigation */}
-      <div className="mb-3 flex items-center justify-between">
-        <button
-          onClick={() => setOffset((o) => o - 1)}
-          className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition hover:bg-accent hover:text-foreground"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <span className="text-xs font-semibold">
-          {targetDate.toLocaleDateString(undefined, {
-            month: "long",
-            year: "numeric",
-          })}
-        </span>
-        <button
-          onClick={() => setOffset((o) => Math.min(0, o + 1))}
-          disabled={offset >= 0}
-          className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-25"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-
       {/* Day-of-week headers */}
       <div className="mb-1 grid grid-cols-7">
         {DAY_HEADERS.map((d, i) => (

@@ -25,7 +25,7 @@ export interface CalendarDayData {
 
 export const attendanceApi = {
   fetchQrToken: async () => {
-    return api.get("/api/attendance/qr");
+    return api.get(`/api/attendance/qr?t=${Date.now()}`);
   },
 
   fetchCalendar: async (facultyId: number | string, month: number, year: number) => {
@@ -55,6 +55,25 @@ export const attendanceApi = {
   },
 
   removeHoliday: async (payload: { date: string }) => {
-    return api.delete("/api/attendance/holiday", { data: payload });
+    return api.delete("/api/attendance/holiday", payload);
+  },
+
+  clearAllHolidays: async () => {
+    return api.delete("/api/attendance/holidays/clear");
+  },
+
+  fetchSessionStatus: async () => {
+    const res = await api.get("/api/attendance/session");
+    return res as { isSessionActive: boolean };
+  },
+
+  startSession: async () => {
+    const res = await api.post("/api/attendance/session/start");
+    return res as { message: string; isSessionActive: boolean };
+  },
+
+  endSession: async () => {
+    const res = await api.post("/api/attendance/session/end");
+    return res as { message: string; isSessionActive: boolean };
   }
 };

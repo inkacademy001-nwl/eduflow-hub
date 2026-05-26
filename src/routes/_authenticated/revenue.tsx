@@ -1,6 +1,7 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
+import { canAccess } from "@/config/rolePermissions";
 import { ComingSoon } from "@/components/ComingSoon";
 
 export const Route = createFileRoute("/_authenticated/revenue")({
@@ -9,10 +10,10 @@ export const Route = createFileRoute("/_authenticated/revenue")({
 
 function RevenuePage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  useEffect(() => {
-    if (user && user.role !== "Owner") navigate({ to: "/dashboard" });
-  }, [user, navigate]);
+  if (!user || !canAccess(user.role, "revenue")) {
+    return <Navigate to={user?.role === "Faculty" ? "/" : "/dashboard"} replace />;
+  }
+
   return (
     <ComingSoon
       title="Revenue"

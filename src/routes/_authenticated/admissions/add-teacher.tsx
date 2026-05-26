@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,8 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Stepper } from "./add-student";
+import { useAuth } from "@/lib/auth";
+import { canAccess } from "@/config/rolePermissions";
 import { facultyApi, Teacher } from "@/lib/faculty-api";
 
 export const Route = createFileRoute("/_authenticated/admissions/add-teacher")(
@@ -77,6 +79,11 @@ function localToday(): string {
 
 /* ── Main form ───────────────────────────────────────────────────────────── */
 export function TeacherForm({ initialData }: { initialData?: Teacher }) {
+  const { user } = useAuth();
+  if (!user || !canAccess(user.role, "admissions")) {
+    return <Navigate to={user?.role === "Faculty" ? "/" : "/dashboard"} replace />;
+  }
+
   const existing = initialData;
   const isEdit = !!existing;
   const navigate = useNavigate();
@@ -276,6 +283,15 @@ export function TeacherForm({ initialData }: { initialData?: Teacher }) {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                       />
+                      {email && !email.includes("@") && (
+                        <button
+                          type="button"
+                          onClick={() => setEmail((prev) => prev + "@gmail.com")}
+                          className="mt-1.5 w-fit inline-flex items-center rounded-md bg-muted/50 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                          + @gmail.com
+                        </button>
+                      )}
                     </F>
 
                     <F label="Joining Date">

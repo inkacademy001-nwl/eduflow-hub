@@ -1,10 +1,24 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { facultyApi, Teacher, FacultyDashboardData } from "@/lib/faculty-api";
+import { useAuth } from "@/lib/auth";
+import { canAccess } from "@/config/rolePermissions";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Pencil,
   Trash2,
@@ -25,10 +39,16 @@ export const Route = createFileRoute("/_authenticated/faculty")({
 });
 
 function FacultyPage() {
+  const { user } = useAuth();
+  if (!user || !canAccess(user.role, "faculty")) {
+    return <Navigate to={user?.role === "Faculty" ? "/" : "/dashboard"} replace />;
+  }
+
   const [tab, setTab] = useState<"daily" | "hourly">("daily");
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [all, setAll] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
+  const [finalizingSalaries, setFinalizingSalaries] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -48,6 +68,20 @@ function FacultyPage() {
 
   const refresh = () => fetchData();
   const list = all.filter((t) => t.salaryType === tab);
+
+  const handleSaveAndSendPayslips = async () => {
+    setFinalizingSalaries(true);
+    const now = new Date();
+    try {
+      const result = await facultyApi.bulkFinalizeSalaries(now.getMonth() + 1, now.getFullYear());
+      toast.success(result.message, { description: `Processed: ${result.summary.processed}` });
+      refresh();
+    } catch (err: any) {
+      toast.error("Failed to process payslips", { description: err.message || "An error occurred" });
+    } finally {
+      setFinalizingSalaries(false);
+    }
+  };
 
   const onExportSheets = () => {
     const teachers = all;
@@ -108,31 +142,67 @@ function FacultyPage() {
             {list.length} {tab} faculty
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={onExportSheets}>
-          <SheetIcon className="mr-2 h-4 w-4" /> Export to Google Sheets
-        </Button>
+        <div className="flex items-center gap-3">
+          {user.role !== "Faculty" && <DeductionConfigForm />}
+          <Button variant="outline" size="sm" onClick={onExportSheets}>
+            <SheetIcon className="mr-2 h-4 w-4" /> Export to Google Sheets
+          </Button>
+        </div>
       </div>
 
-      <div className="mb-6 inline-flex items-center rounded-full border border-border bg-card p-1 shadow-sm">
-        {(["daily", "hourly"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium capitalize transition",
-              tab === t
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t === "daily" ? (
-              <Calendar className="h-4 w-4" />
-            ) : (
-              <Clock className="h-4 w-4" />
-            )}
-            {t} Based
-          </button>
-        ))}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="inline-flex items-center rounded-full border border-border bg-card p-1 shadow-sm">
+          {(["daily", "hourly"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium capitalize transition",
+                tab === t
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t === "daily" ? (
+                <Calendar className="h-4 w-4" />
+              ) : (
+                <Clock className="h-4 w-4" />
+              )}
+              {t} Based
+            </button>
+          ))}
+        </div>
+        
+        {user.role !== "Faculty" && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button disabled={finalizingSalaries}>
+                {finalizingSalaries ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...
+                  </>
+                ) : (
+                  <>
+                    <SheetIcon className="mr-2 h-4 w-4" /> Finalize All Salaries
+                  </>
+                )}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will finalize salaries and make payslips available to all faculties in their portals for the current month.
+                  This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleSaveAndSendPayslips}>Confirm</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
 
       {loading ? (
@@ -165,6 +235,116 @@ function FacultyPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function DeductionConfigForm() {
+  const { user } = useAuth();
+  const [config, setConfig] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  
+  const isOwner = user?.role === "Owner";
+
+  useEffect(() => {
+    loadConfig();
+  }, []);
+
+  const loadConfig = async () => {
+    try {
+      setLoading(true);
+      const data = await facultyApi.fetchDeductionConfig();
+      setConfig(data);
+    } catch (err) {
+      toast.error("Failed to load deduction config");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (updatedConfig: any) => {
+    if (!isOwner) return;
+    try {
+      setSaving(true);
+      await facultyApi.updateDeductionConfig(updatedConfig);
+      setConfig(updatedConfig);
+      toast.success("Deduction config saved");
+    } catch (err) {
+      toast.error("Failed to save config");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading || !config) return <div className="text-sm text-muted-foreground">Loading config...</div>;
+
+  const updateField = (field: string, value: any) => {
+    const updated = { ...config, [field]: value };
+    setConfig(updated);
+    // Auto-save on change if owner
+    handleSave(updated);
+  };
+
+  return (
+    <div className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-2 shadow-sm text-sm">
+      <div className="flex items-center gap-2">
+        <span className="font-medium">Late:</span>
+        <Select
+          disabled={!isOwner || saving}
+          value={config.lateType}
+          onValueChange={(v) => updateField("lateType", v)}
+        >
+          <SelectTrigger className="h-8 w-28 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="NONE">None</SelectItem>
+            <SelectItem value="PERCENTAGE">Percent</SelectItem>
+            <SelectItem value="PER_DAY">Per Day</SelectItem>
+            <SelectItem value="FIXED_AMOUNT">Fixed</SelectItem>
+          </SelectContent>
+        </Select>
+        {config.lateType !== "PER_DAY" && config.lateType !== "NONE" && (
+          <Input
+            className="h-8 w-16 text-xs"
+            disabled={!isOwner || saving}
+            value={config.lateValue || ""}
+            onChange={(e) => setConfig({ ...config, lateValue: e.target.value })}
+            onBlur={() => handleSave(config)}
+            placeholder={config.lateType === "PERCENTAGE" ? "%" : "₹"}
+          />
+        )}
+      </div>
+      <div className="h-4 w-px bg-border" />
+      <div className="flex items-center gap-2">
+        <span className="font-medium">Absent:</span>
+        <Select
+          disabled={!isOwner || saving}
+          value={config.absentType}
+          onValueChange={(v) => updateField("absentType", v)}
+        >
+          <SelectTrigger className="h-8 w-28 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="NONE">None</SelectItem>
+            <SelectItem value="PERCENTAGE">Percent</SelectItem>
+            <SelectItem value="PER_DAY">Per Day</SelectItem>
+            <SelectItem value="FIXED_AMOUNT">Fixed</SelectItem>
+          </SelectContent>
+        </Select>
+        {config.absentType !== "PER_DAY" && config.absentType !== "NONE" && (
+          <Input
+            className="h-8 w-16 text-xs"
+            disabled={!isOwner || saving}
+            value={config.absentValue || ""}
+            onChange={(e) => setConfig({ ...config, absentValue: e.target.value })}
+            onBlur={() => handleSave(config)}
+            placeholder={config.absentType === "PERCENTAGE" ? "%" : "₹"}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -250,8 +430,8 @@ function FacultyModal({
     facultyApi.fetchFacultyDashboard(teacher.id, now.getMonth() + 1, now.getFullYear())
       .then((data) => {
         setDashboard(data);
-        setBonus(data.salary.bonus || 0);
-        setDeductions(data.salary.deductions || 0);
+        setBonus(data.salary?.bonus || 0);
+        setDeductions(data.salary?.deductions || 0);
       })
       .catch(() => toast.error("Failed to load dashboard"));
   }, [teacher.id]);
@@ -265,7 +445,7 @@ function FacultyModal({
         bonus,
         deductions
       });
-      setDashboard(prev => prev ? { ...prev, salary: res.data.salary } : prev);
+      setDashboard(prev => prev ? { ...prev, salary: res.data?.salary || prev.salary } : prev);
       toast.success("Salary updated");
       onChange();
     } catch {
@@ -276,9 +456,9 @@ function FacultyModal({
   const isDaily = teacher.salaryType === "daily";
   
   // Real-time calculation for UI
-  const baseAmount = isDaily ? (dashboard?.salary.basicPay || 0) : ((dashboard?.salary.totalHours || 0) * (dashboard?.salary.hourlyRate || 0));
-  const computedGross = baseAmount + bonus;
-  const computedNet = computedGross - deductions;
+  const baseAmount = isDaily ? (dashboard?.salary?.basicPay || 0) : ((dashboard?.salary?.totalHours || 0) * (dashboard?.salary?.hourlyRate || 0));
+  const computedGross = Math.round(baseAmount + bonus);
+  const computedNet = Math.round(computedGross - deductions);
 
   const expectedHours = dashboard?.salary.totalHours ?? 0;
   const weekHours = Math.round(expectedHours / 4);

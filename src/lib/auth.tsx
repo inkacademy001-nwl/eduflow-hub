@@ -7,6 +7,7 @@ export interface AuthUser {
   email: string;
   role: Role;
   facultyId?: string;
+  token?: string;
 }
 
 interface AuthContextValue {
@@ -52,8 +53,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const persist = (u: AuthUser | null) => {
     setUser(u);
-    if (u) localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
-    else localStorage.removeItem(STORAGE_KEY);
+    if (u) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
+      if (u.token) localStorage.setItem("erp_auth_token", u.token);
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem("erp_auth_token");
+    }
   };
 
   const googleSignIn: AuthContextValue["googleSignIn"] = async (token) => {
@@ -76,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       name: backendUser.fullName || backendUser.name || "User",
       email: backendUser.email,
       role,
+      token: res.token,
       ...(role === "Faculty" ? { facultyId: `FAC-${backendUser.id}` } : {}),
     };
 

@@ -1,5 +1,12 @@
 import { api } from "./api";
 
+export interface SalaryDeductionConfig {
+  lateType: 'NONE' | 'PERCENTAGE' | 'PER_DAY' | 'FIXED_AMOUNT';
+  lateValue: number | null;
+  absentType: 'NONE' | 'PERCENTAGE' | 'PER_DAY' | 'FIXED_AMOUNT';
+  absentValue: number | null;
+}
+
 export interface Teacher {
   id: string;
   fullName: string;
@@ -76,6 +83,18 @@ export const facultyApi = {
   updateFacultySalary: async (id: number | string, payload: { month: number; year: number; bonus: number; deductions: number }) => {
     const rawId = typeof id === "string" ? id.replace("FAC-", "") : id;
     return api.patch(`/api/faculty/${rawId}/salary`, payload);
+  },
+
+  fetchDeductionConfig: async () => {
+    return api.get("/api/faculty/config/deductions") as Promise<SalaryDeductionConfig>;
+  },
+
+  updateDeductionConfig: async (payload: SalaryDeductionConfig) => {
+    return api.put("/api/faculty/config/deductions", payload) as Promise<{ message: string, config: SalaryDeductionConfig }>;
+  },
+
+  bulkFinalizeSalaries: async (month: number, year: number) => {
+    return api.post("/api/faculty/bulk-payslips", { month, year }) as Promise<{ message: string, summary: any }>;
   }
 };
 

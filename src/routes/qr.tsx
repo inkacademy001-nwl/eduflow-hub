@@ -1,12 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, RefreshCw, QrCode, CalendarDays, Clock } from "lucide-react";
+import { ArrowLeft, RefreshCw, QrCode, CalendarDays, Clock, Power } from "lucide-react";
 import { toast } from "sonner";
 import { attendanceApi, type ScanEntry } from "@/lib/attendance-api";
+import { useAuth } from "@/lib/auth";
+import { canAccess } from "@/config/rolePermissions";
 
 export const Route = createFileRoute("/qr")({
   component: QRDisplay,
@@ -40,6 +42,16 @@ function toMidnight(date: Date): Date {
 }
 
 function QRDisplay() {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Loading...</div>;
+  }
+
+  if (!user || !canAccess(user.role, "qr")) {
+    return <Navigate to={user?.role === "Faculty" ? "/" : "/dashboard"} replace />;
+  }
+
   const [now, setNow] = useState(() => Date.now());
   const [token, setToken] = useState<string>("LOADING...");
   const [tokenStart, setTokenStart] = useState(() => Date.now());
@@ -52,6 +64,22 @@ function QRDisplay() {
   useEffect(() => setMounted(true), []);
 
   const [tokenKey, setTokenKey] = useState(0);
+  const [isSessionActive, setIsSessionActive] = useState<boolean>(true);
+
+  // Poll session status
+  useEffect(() => {
+    const fetchSession = async () => {
+      try {
+        const res = await attendanceApi.fetchSessionStatus();
+        setIsSessionActive(res.isSessionActive);
+      } catch {
+        // quiet fail
+      }
+    };
+    fetchSession();
+    const interval = setInterval(fetchSession, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Derive Date[] from the ISO set — memoized so reference is stable between renders
   const holidayDates = useMemo<Date[]>(
@@ -86,20 +114,29 @@ function QRDisplay() {
 
   // QR Token Generation Polling
   useEffect(() => {
+    if (!isSessionActive) {
+      setToken("INACTIVE");
+      return;
+    }
+
     const fetchToken = async () => {
       try {
         const res = await attendanceApi.fetchQrToken();
-        setToken(res.token);
-        setTokenStart(Date.now());
+        if (res.token) {
+          setToken(res.token);
+          setTokenStart(Date.now());
+        } else {
+          setToken("ERROR");
+        }
       } catch {
-        toast.error("Failed to fetch QR token");
+        setToken("ERROR");
       }
     };
 
     fetchToken();
     const interval = setInterval(fetchToken, REFRESH_SECONDS * 1000);
     return () => clearInterval(interval);
-  }, [tokenKey]);
+  }, [tokenKey, isSessionActive]);
 
   const handleRegenerateQR = () => {
     setToken("LOADING...");
@@ -187,8 +224,14 @@ function QRDisplay() {
     [holidayIsos],
   );
 
-  const handleClearHolidays = () => {
-    toast.info("Please tap individual dates to remove holidays.");
+  const handleClearHolidays = async () => {
+    try {
+      await attendanceApi.clearAllHolidays();
+      setHolidayIsos(new Set());
+      toast.success("All holidays cleared");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to clear holidays");
+    }
   };
 
   return (
@@ -235,9 +278,19 @@ function QRDisplay() {
           </div>
           <div className="mt-6 flex flex-col items-center">
             <div className="rounded-xl border border-border bg-background p-4">
-              {token === "LOADING..." ? (
+              {!isSessionActive || token === "INACTIVE" ? (
+                <div className="flex flex-col gap-2 h-[220px] w-[220px] items-center justify-center border-2 border-dashed border-muted text-sm text-muted-foreground text-center px-4">
+                  <Power className="h-6 w-6 opacity-50" />
+                  <span className="font-medium">Attendance session not started</span>
+                </div>
+              ) : token === "LOADING..." ? (
                 <div className="flex h-[220px] w-[220px] items-center justify-center border-2 border-dashed border-muted text-sm text-muted-foreground">
                   Loading...
+                </div>
+              ) : token === "ERROR" ? (
+                <div className="flex flex-col gap-2 h-[220px] w-[220px] items-center justify-center border-2 border-dashed border-destructive/50 text-sm text-destructive">
+                  <RefreshCw className="h-6 w-6 animate-spin opacity-50" />
+                  <span className="text-center font-medium opacity-80">Connection lost.<br/>Retrying...</span>
                 </div>
               ) : (
                 <QRCodeSVG value={token} size={220} level="M" />

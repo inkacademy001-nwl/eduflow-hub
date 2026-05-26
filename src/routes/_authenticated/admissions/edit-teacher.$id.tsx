@@ -1,16 +1,24 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { TeacherForm } from "./add-teacher";
 import { facultyApi, Teacher } from "@/lib/faculty-api";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
+import { canAccess } from "@/config/rolePermissions";
 
 export const Route = createFileRoute("/_authenticated/admissions/edit-teacher/$id")({
   component: EditTeacher,
 });
 
 function EditTeacher() {
+  const { user } = useAuth();
+  if (!user || !canAccess(user.role, "admissions")) {
+    return <Navigate to={user?.role === "Faculty" ? "/" : "/dashboard"} replace />;
+  }
+
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const [data, setData] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
 

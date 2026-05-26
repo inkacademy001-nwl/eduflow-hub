@@ -64,6 +64,17 @@ function BreakdownPage() {
   const now = new Date();
   const targetDate = new Date(now.getFullYear(), now.getMonth() + offset, 1);
 
+  let isPrevDisabled = false;
+  if (teacher?.joiningDate) {
+    const joinDate = new Date(teacher.joiningDate);
+    if (
+      targetDate.getFullYear() < joinDate.getFullYear() ||
+      (targetDate.getFullYear() === joinDate.getFullYear() && targetDate.getMonth() <= joinDate.getMonth())
+    ) {
+      isPrevDisabled = true;
+    }
+  }
+
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="mb-5">
@@ -79,7 +90,8 @@ function BreakdownPage() {
         <div className="mb-4 flex items-center justify-between rounded-2xl border border-border bg-card p-3 shadow-sm">
           <button
             onClick={() => setOffset((o) => o - 1)}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-accent hover:text-foreground"
+            disabled={isPrevDisabled}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-25"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>

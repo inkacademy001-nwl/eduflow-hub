@@ -1,12 +1,50 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { BarChart3, PieChart, TrendingUp, Sparkles } from "lucide-react";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
+import { BarChart3, PieChart, TrendingUp, Sparkles, QrCode, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { attendanceApi } from "@/lib/attendance-api";
+import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
+import { canAccess } from "@/config/rolePermissions";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
 function Dashboard() {
+  const { user } = useAuth();
+  if (!user || !canAccess(user.role, "dashboard")) {
+    return <Navigate to={user?.role === "Faculty" ? "/" : "/dashboard"} replace />;
+  }
+
+  const [sessionActive, setSessionActive] = useState<boolean>(false);
+  const [isLoadingSession, setIsLoadingSession] = useState(true);
+
+  useEffect(() => {
+    attendanceApi.fetchSessionStatus()
+      .then(res => {
+        setSessionActive(res.isSessionActive);
+        setIsLoadingSession(false);
+      })
+      .catch(() => setIsLoadingSession(false));
+  }, []);
+
+  const toggleSession = async () => {
+    try {
+      if (sessionActive) {
+        await attendanceApi.endSession();
+        setSessionActive(false);
+        toast.success("Attendance session ended");
+      } else {
+        await attendanceApi.startSession();
+        setSessionActive(true);
+        toast.success("Attendance session started (Auto-expires in 4 hrs)");
+      }
+    } catch (err: any) {
+      toast.error("Failed to toggle session");
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
@@ -14,6 +52,28 @@ function Dashboard() {
         <p className="text-sm text-muted-foreground">
           Your tuition center, at a glance.
         </p>
+      </div>
+
+      <div className="mb-6 rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <QrCode className="h-5 w-5 text-primary" />
+            QR Attendance Session
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Control the active state of the QR attendance system. 
+            Status: {isLoadingSession ? "Loading..." : (sessionActive ? <span className="font-semibold text-green-600">Active</span> : <span className="font-semibold text-destructive">Inactive</span>)}
+          </p>
+        </div>
+        <Button 
+          variant={sessionActive ? "destructive" : "default"} 
+          onClick={toggleSession}
+          disabled={isLoadingSession}
+          className="w-full sm:w-auto"
+        >
+          <Power className="mr-2 h-4 w-4" />
+          {sessionActive ? "End Session" : "Start Attendance Session"}
+        </Button>
       </div>
 
       <div className="rounded-2xl border border-dashed border-primary/30 bg-gradient-to-br from-accent/40 to-background p-10 text-center">

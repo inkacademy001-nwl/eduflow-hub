@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,8 @@ import { ArrowLeft, ArrowRight, Calendar, Check, Phone, Plus, Trash2, UserPlus, 
 import { studentApi, type Student } from "@/lib/student-api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
+import { canAccess } from "@/config/rolePermissions";
 
 export const Route = createFileRoute("/_authenticated/admissions/add-student")(
   {
@@ -100,6 +102,11 @@ const ANIM_STYLES = `
 
 /* ── form component ──────────────────────────────────────────────────────── */
 export function StudentForm({ existingData }: { existingData?: Student }) {
+  const { user } = useAuth();
+  if (!user || !canAccess(user.role, "admissions")) {
+    return <Navigate to={user?.role === "Faculty" ? "/" : "/dashboard"} replace />;
+  }
+
   const existing = existingData;
   const isEdit = !!existing;
   const navigate = useNavigate();
