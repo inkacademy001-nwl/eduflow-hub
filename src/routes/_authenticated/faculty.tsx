@@ -175,7 +175,7 @@ function FacultyPage() {
             </button>
           ))}
         </div>
-        
+
         {user.role !== "Faculty" && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -187,7 +187,7 @@ function FacultyPage() {
                   </>
                 ) : (
                   <>
-                    <Calculator className="h-4 w-4 sm:mr-2" /> 
+                    <Calculator className="h-4 w-4 sm:mr-2" />
                     <span className="hidden sm:inline">Finalize All Salaries</span>
                     <span className="sm:hidden">Finalize</span>
                   </>
@@ -250,7 +250,7 @@ function DeductionConfigForm() {
   const [config, setConfig] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  
+
   const isOwner = user?.role === "Owner";
 
   useEffect(() => {
@@ -460,7 +460,7 @@ function FacultyModal({
   };
 
   const isDaily = teacher.salaryType === "daily";
-  
+
   // Real-time calculation for UI
   const baseAmount = isDaily ? (dashboard?.salary?.basicPay || 0) : ((dashboard?.salary?.totalHours || 0) * (dashboard?.salary?.hourlyRate || 0));
   const computedGross = Math.round(baseAmount + bonus);
@@ -657,8 +657,8 @@ function FacultyModal({
                     </span>
                   </div>
 
-                  <Button 
-                    className="w-full mt-2" 
+                  <Button
+                    className="w-full mt-2"
                     size="sm"
                     onClick={handleSaveSalary}
                   >
@@ -754,8 +754,8 @@ function FacultyModal({
                   <p className="mt-2 text-[10px] text-white/25">
                     * Based on classes logged this month
                   </p>
-                  <Button 
-                    className="w-full mt-2" 
+                  <Button
+                    className="w-full mt-2"
                     size="sm"
                     onClick={handleSaveSalary}
                   >
