@@ -138,13 +138,36 @@ function StudentsPage() {
     setExporting(true);
     try {
       const url = `${import.meta.env.VITE_API_BASE_URL || ""}/api/students/download-csv`;
+      const token = localStorage.getItem("erp_auth_token");
+      
+      const res = await fetch(url, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("You do not have permission to export students.");
+        }
+        throw new Error("Failed to export students.");
+      }
+      
+      const blob = await res.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
+      a.href = objectUrl;
+      // You can extract the filename from the Content-Disposition header if needed,
+      // but defaulting to students.csv is fine.
+      a.download = "students.csv";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      await new Promise((r) => setTimeout(r, 400));
+      window.URL.revokeObjectURL(objectUrl);
+      
       toast.success("Export ready");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to export");
     } finally {
       setExporting(false);
     }

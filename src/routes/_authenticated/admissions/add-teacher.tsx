@@ -144,8 +144,24 @@ export function TeacherForm({ initialData }: { initialData?: Teacher }) {
     setter((arr) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]));
 
   const goNext = () => {
-    if (!fullName || !phone || !email || subjects.length === 0) {
-      toast.error("Name, phone, email and at least one subject are required");
+    if (!fullName.trim()) {
+      toast.error("Full Name is required");
+      return;
+    }
+    if (!phone.trim()) {
+      toast.error("Phone is required");
+      return;
+    }
+    if (!/^\d{10}$/.test(phone)) {
+      toast.error("Phone must be exactly 10 digits (numbers only)");
+      return;
+    }
+    if (emergencyPhone && !/^\d{10}$/.test(emergencyPhone)) {
+      toast.error("Emergency Phone must be exactly 10 digits (numbers only)");
+      return;
+    }
+    if (!email.trim()) {
+      toast.error("Email is required");
       return;
     }
     setAnimClass("_tf_right");
@@ -160,10 +176,14 @@ export function TeacherForm({ initialData }: { initialData?: Teacher }) {
   };
 
   const submit = async () => {
-    if (salaryType === "daily" && !monthlySalary)
-      return toast.error("Enter monthly salary");
-    if (salaryType === "hourly" && !hourlyRate)
-      return toast.error("Enter salary per hour");
+    if (salaryType === "daily" && !monthlySalary) {
+      toast.error("Monthly salary is required for daily basis");
+      return;
+    }
+    if (salaryType === "hourly" && !hourlyRate) {
+      toast.error("Hourly rate is required for hourly basis");
+      return;
+    }
 
     const payload = {
       fullName,
@@ -336,7 +356,7 @@ export function TeacherForm({ initialData }: { initialData?: Teacher }) {
                 </Card>
 
                 {/* Subjects Taught — class-group based */}
-                <Card title="Subjects Taught *">
+                <Card title="Subjects Taught">
                   <div className="space-y-5">
                     {SUBJECT_GROUPS.map((group) => (
                       <div key={group.label}>

@@ -669,7 +669,7 @@ function FacultyModal({
 
               {/* Col 3 – Attendance calendar */}
               <GlassPanel title="Attendance Calendar">
-                <AttendanceCalendar dashboard={dashboard} />
+                <AttendanceCalendar dashboard={dashboard} isHourly={!isDaily} />
               </GlassPanel>
             </div>
           ) : (
@@ -766,7 +766,7 @@ function FacultyModal({
 
               {/* Col 3 – Attendance calendar */}
               <GlassPanel title="Attendance Calendar">
-                <AttendanceCalendar dashboard={dashboard} />
+                <AttendanceCalendar dashboard={dashboard} isHourly={!isDaily} />
               </GlassPanel>
             </div>
           )}
@@ -870,7 +870,7 @@ function SalaryItem({
 }
 
 /* ─── Attendance Calendar (replicating reference image) ─────────────────── */
-function AttendanceCalendar({ dashboard }: { dashboard: FacultyDashboardData | null }) {
+function AttendanceCalendar({ dashboard, isHourly }: { dashboard: FacultyDashboardData | null, isHourly: boolean }) {
   const now = new Date();
   const [offset, setOffset] = useState(0);
   const targetDate = new Date(now.getFullYear(), now.getMonth() + offset, 1);
@@ -928,13 +928,15 @@ function AttendanceCalendar({ dashboard }: { dashboard: FacultyDashboardData | n
         {Array.from({ length: new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate() }).map((_, i) => {
           const dayStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`;
           let status = null;
+          let totalHours = null;
           if (isCurrentMonth && dashboard) {
             const record = dashboard.calendar.find(c => c.date === dayStr);
-            status = record?.status ? record.status.toLowerCase() : "none";
+            status = record?.status ? record.status : "none";
+            totalHours = record?.totalHours;
           } else {
             status = "none";
           }
-          return <CalendarDay key={i} day={i + 1} status={status as any} />;
+          return <CalendarDay key={i} day={i + 1} status={status as any} isHourly={isHourly} totalHours={totalHours} />;
         })}
       </div>
 
@@ -968,8 +970,8 @@ function AttendanceCalendar({ dashboard }: { dashboard: FacultyDashboardData | n
 /* ─── Single calendar day cell ──────────────────────────────────────────── */
 type DayStatus = "Present" | "Absent" | "Late" | "Holiday" | "none" | null;
 
-function CalendarDay({ day, status }: { day: number; status: DayStatus }) {
-  if (status === "none") {
+function CalendarDay({ day, status, isHourly, totalHours }: { day: number; status: DayStatus, isHourly?: boolean, totalHours?: number | null }) {
+  if (status === "none" || !status) {
     // Sunday / future – dim number only
     return (
       <div className="flex flex-col items-center py-0.5">
@@ -979,6 +981,16 @@ function CalendarDay({ day, status }: { day: number; status: DayStatus }) {
   }
 
   if (status === "Present") {
+    if (isHourly) {
+      return (
+        <div className="flex flex-col items-center py-0.5">
+          <div className="flex h-6 w-6 flex-col items-center justify-center rounded-full border-2 border-blue-400 bg-blue-400/15">
+            <span className="text-[10px] font-bold text-blue-400">{day}</span>
+          </div>
+          {totalHours ? <span className="mt-0.5 text-[8px] text-blue-400/80">{totalHours}h</span> : null}
+        </div>
+      );
+    }
     // Blue circle with checkmark (matching reference image)
     return (
       <div className="flex flex-col items-center py-0.5">
@@ -1000,6 +1012,16 @@ function CalendarDay({ day, status }: { day: number; status: DayStatus }) {
   }
 
   if (status === "Late") {
+    if (isHourly) {
+      return (
+        <div className="flex flex-col items-center py-0.5">
+          <div className="flex h-6 w-6 flex-col items-center justify-center rounded-full border-2 border-yellow-400 bg-yellow-400/15">
+            <span className="text-[10px] font-bold text-yellow-400">{day}</span>
+          </div>
+          {totalHours ? <span className="mt-0.5 text-[8px] text-yellow-400/80">{totalHours}h</span> : null}
+        </div>
+      );
+    }
     // Yellow circle with checkmark — same shape as present but amber/yellow
     return (
       <div className="flex flex-col items-center py-0.5">
@@ -1023,7 +1045,11 @@ function CalendarDay({ day, status }: { day: number; status: DayStatus }) {
     );
   }
 
-  return null;
+  return (
+    <div className="flex flex-col items-center py-0.5">
+      <span className="text-[10px] text-white/15">{day}</span>
+    </div>
+  );
 }
 
 /* ─── Shared Stat chip (used on cards) ──────────────────────────────────── */

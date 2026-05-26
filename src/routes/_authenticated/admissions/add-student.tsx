@@ -166,14 +166,32 @@ export function StudentForm({ existingData }: { existingData?: Student }) {
     );
 
   const goNext = () => {
-    if (!fullName || !primaryPhone) {
-      toast.error("Name and primary phone are required");
+    if (!fullName.trim()) {
+      toast.error("Full Name is required");
+      return;
+    }
+    if (!primaryPhone.trim()) {
+      toast.error("Primary Phone is required");
+      return;
+    }
+    if (!/^\d{10}$/.test(primaryPhone)) {
+      toast.error("Primary Phone must be exactly 10 digits (numbers only)");
+      return;
+    }
+    if (parentPhone && !/^\d{10}$/.test(parentPhone)) {
+      toast.error("Parent Phone must be exactly 10 digits (numbers only)");
       return;
     }
     const incomplete = extraContacts.some((c) => !c.number || !c.relation);
     if (incomplete) {
       toast.error("Each additional contact needs both a number and a relation");
       return;
+    }
+    for (const c of extraContacts) {
+      if (!/^\d{10}$/.test(c.number)) {
+        toast.error("Additional contact numbers must be exactly 10 digits (numbers only)");
+        return;
+      }
     }
     setAnimClass("_anim-right");
     setAnimKey((k) => k + 1);
@@ -187,8 +205,12 @@ export function StudentForm({ existingData }: { existingData?: Student }) {
   };
 
   const submit = async () => {
-    if (!cls || !board || subjects.length === 0) {
-      toast.error("Class, board and at least one subject are required");
+    if (!cls) {
+      toast.error("Class is required");
+      return;
+    }
+    if (!board) {
+      toast.error("Board is required");
       return;
     }
     if (!admissionDate) {
@@ -304,7 +326,7 @@ export function StudentForm({ existingData }: { existingData?: Student }) {
                   <Input
                     value={primaryPhone}
                     onChange={(e) => setPrimaryPhone(e.target.value)}
-                    placeholder="+91 98765 43210"
+                    placeholder="98765 43210"
                   />
                 </Field>
 
@@ -344,7 +366,7 @@ export function StudentForm({ existingData }: { existingData?: Student }) {
                               <SelectValue placeholder="Relation *" />
                             </SelectTrigger>
                             <SelectContent>
-                              {["Father","Mother","Guardian","Sibling","Spouse","Relative","Friend","Other"].map((r) => (
+                              {["Father", "Mother", "Guardian", "Sibling", "Spouse", "Relative", "Friend", "Other"].map((r) => (
                                 <SelectItem key={r} value={r}>{r}</SelectItem>
                               ))}
                             </SelectContent>
@@ -480,7 +502,7 @@ export function StudentForm({ existingData }: { existingData?: Student }) {
                   </Field>
                 )}
 
-                <Field label="Previous School">
+                <Field label="School Name">
                   <Input
                     value={previousSchool}
                     onChange={(e) => setPreviousSchool(e.target.value)}
@@ -504,7 +526,7 @@ export function StudentForm({ existingData }: { existingData?: Student }) {
                 </Field>
 
                 {cls !== "" && (
-                  <Field label="Subjects Enrolled (Tuition) *" full>
+                  <Field label="Subjects Enrolled (Tuition)" full>
                     <div className="flex flex-wrap gap-2 rounded-lg border border-border bg-background p-3">
                       {subjectsForClass(Number(cls)).map((s) => {
                         const active = subjects.includes(s);
