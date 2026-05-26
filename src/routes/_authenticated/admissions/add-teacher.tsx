@@ -164,6 +164,14 @@ export function TeacherForm({ initialData }: { initialData?: Teacher }) {
       toast.error("Email is required");
       return;
     }
+    if (subjects.length === 0) {
+      toast.error("At least one subject is required");
+      return;
+    }
+    if (classes.length === 0) {
+      toast.error("At least one class is required");
+      return;
+    }
     setAnimClass("_tf_right");
     setAnimKey((k) => k + 1);
     setStep(2);

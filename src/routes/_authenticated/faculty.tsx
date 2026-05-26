@@ -50,15 +50,16 @@ function FacultyPage() {
   const [all, setAll] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [finalizingSalaries, setFinalizingSalaries] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [currentPage]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data } = await facultyApi.fetchFaculty("", 1, 1000);
+      const { data } = await facultyApi.fetchFaculty("", currentPage, 50);
       setAll(data);
     } catch (err) {
       toast.error("Failed to fetch faculty");
@@ -217,7 +218,7 @@ function FacultyPage() {
         </div>
       ) : list.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-sm text-muted-foreground">
-          No {tab} faculty yet.
+          No {tab} faculty found on this page.
         </div>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -228,6 +229,33 @@ function FacultyPage() {
               onClick={() => setSelectedTeacher(t)}
             />
           ))}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {!loading && (
+        <div className="mt-8 flex items-center justify-between border-t border-border pt-4">
+          <p className="text-sm text-muted-foreground">
+            Page {currentPage}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" /> Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={all.length < 50}
+            >
+              Next <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
 
@@ -308,10 +336,11 @@ function DeductionConfigForm() {
             <SelectItem value="NONE">None</SelectItem>
             <SelectItem value="PERCENTAGE">Percent</SelectItem>
             <SelectItem value="PER_DAY">Per Day</SelectItem>
+            <SelectItem value="PER_HOUR">Per Hour</SelectItem>
             <SelectItem value="FIXED_AMOUNT">Fixed</SelectItem>
           </SelectContent>
         </Select>
-        {config.lateType !== "PER_DAY" && config.lateType !== "NONE" && (
+        {config.lateType !== "PER_DAY" && config.lateType !== "PER_HOUR" && config.lateType !== "NONE" && (
           <Input
             className="h-8 w-16 text-xs"
             disabled={!isOwner || saving}
@@ -337,10 +366,11 @@ function DeductionConfigForm() {
             <SelectItem value="NONE">None</SelectItem>
             <SelectItem value="PERCENTAGE">Percent</SelectItem>
             <SelectItem value="PER_DAY">Per Day</SelectItem>
+            <SelectItem value="PER_HOUR">Per Hour</SelectItem>
             <SelectItem value="FIXED_AMOUNT">Fixed</SelectItem>
           </SelectContent>
         </Select>
-        {config.absentType !== "PER_DAY" && config.absentType !== "NONE" && (
+        {config.absentType !== "PER_DAY" && config.absentType !== "PER_HOUR" && config.absentType !== "NONE" && (
           <Input
             className="h-8 w-16 text-xs"
             disabled={!isOwner || saving}

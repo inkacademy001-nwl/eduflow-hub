@@ -1,9 +1,9 @@
 import { api } from "./api";
 
 export interface SalaryDeductionConfig {
-  lateType: 'NONE' | 'PERCENTAGE' | 'PER_DAY' | 'FIXED_AMOUNT';
+  lateType: 'NONE' | 'PERCENTAGE' | 'PER_DAY' | 'FIXED_AMOUNT' | 'PER_HOUR';
   lateValue: number | null;
-  absentType: 'NONE' | 'PERCENTAGE' | 'PER_DAY' | 'FIXED_AMOUNT';
+  absentType: 'NONE' | 'PERCENTAGE' | 'PER_DAY' | 'FIXED_AMOUNT' | 'PER_HOUR';
   absentValue: number | null;
 }
 
