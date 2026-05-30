@@ -22,6 +22,7 @@ export function OwnerDashboard({ sessionActive, isLoadingSession, toggleSession 
 
   const [data, setData] = useState<OwnerDashboardResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.token) {
@@ -29,18 +30,30 @@ export function OwnerDashboard({ sessionActive, isLoadingSession, toggleSession 
         .then(res => {
           setData(res);
           setIsLoading(false);
+          setError(null);
         })
         .catch(err => {
           console.error("Failed to fetch dashboard data:", err);
+          setError(err.message || "Failed to load dashboard data");
           setIsLoading(false);
         });
     }
   }, [user?.token]);
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center text-center space-y-4">
+        <p className="text-destructive font-semibold">Error Loading Dashboard</p>
+        <p className="text-muted-foreground">{error || "No data available"}</p>
+        <Button variant="outline" onClick={() => window.location.reload()}>Retry</Button>
       </div>
     );
   }

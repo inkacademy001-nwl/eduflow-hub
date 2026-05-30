@@ -14,10 +14,8 @@ export const api = {
       headers: api.getHeaders(),
     });
     if (!res.ok) {
-      if (res.status === 401 || res.status === 403) {
-        const errorData = await res.json().catch(() => null);
-        throw new Error(errorData?.message || `Access Denied (${res.status})`);
-      }
+      const errorData = await res.json().catch(() => null);
+      throw new Error(errorData?.message || `HTTP error ${res.status}`);
     }
     return res.json();
   },
