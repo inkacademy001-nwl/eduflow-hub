@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { canAccess } from "@/config/rolePermissions";
 
+import { OwnerDashboard } from "@/components/dashboard/OwnerDashboard";
+
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
@@ -45,6 +47,30 @@ function Dashboard() {
     }
   };
 
+  if (user.role === "Owner") {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <OwnerDashboard 
+          sessionActive={sessionActive} 
+          isLoadingSession={isLoadingSession} 
+          toggleSession={toggleSession} 
+        />
+      </div>
+    );
+  }
+
+  return <CoordinatorDashboard sessionActive={sessionActive} isLoadingSession={isLoadingSession} toggleSession={toggleSession} />;
+}
+
+function CoordinatorDashboard({ 
+  sessionActive, 
+  isLoadingSession, 
+  toggleSession 
+}: { 
+  sessionActive: boolean; 
+  isLoadingSession: boolean; 
+  toggleSession: () => void; 
+}) {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">

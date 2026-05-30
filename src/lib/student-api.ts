@@ -22,6 +22,7 @@ export interface Student {
   admissionDate: string;
   notes?: string;
   fees?: number;
+  feeStatus?: "Paid" | "Not Paid";
 }
 
 export const studentApi = {
@@ -51,6 +52,11 @@ export const studentApi = {
   deleteStudentApi: async (id: number | string) => {
     const rawId = typeof id === "string" ? id.replace("STU-", "") : id;
     return api.delete(`/api/students/${rawId}`);
+  },
+
+  updateFeeStatusApi: async (id: number | string, status: "Paid" | "Not Paid") => {
+    const rawId = typeof id === "string" ? id.replace("STU-", "") : id;
+    return api.put(`/api/students/${rawId}/fee-status`, { status });
   }
 };
 
@@ -58,12 +64,13 @@ function mapStudentListResponse(backendStudent: any): Student {
   return {
     id: `STU-${backendStudent.id}`,
     fullName: backendStudent.fullName,
-    primaryPhone: backendStudent.contacts?.[0]?.phoneNumber || "—",
-    class: Number(backendStudent.academic?.standard) || 0,
-    board: backendStudent.academic?.board || "—",
+    primaryPhone: backendStudent.contacts?.[0]?.phoneNumber || "N/A",
+    class: backendStudent.academic?.standard ? parseInt(backendStudent.academic.standard) : 0,
+    board: backendStudent.academic?.board || "N/A",
     subjects: backendStudent.academic?.subjects || [],
-    admissionDate: "—",
-    fees: undefined // Not returned
+    admissionDate: "",
+    feeStatus: backendStudent.fee?.status || "Not Paid",
+    fees: undefined
   };
 }
 

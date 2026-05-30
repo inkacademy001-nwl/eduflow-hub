@@ -12,6 +12,7 @@ import {
   LogOut,
   Sun,
   Moon,
+  CalendarCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -53,6 +54,9 @@ export function AppSidebar() {
 
   const items = [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+    ...(user?.role === "Owner" || user?.role === "Coordinator"
+      ? [{ title: "Attendance", url: "/student-attendance", icon: CalendarCheck }]
+      : []),
     { title: "Students", url: "/students", icon: Users },
     { title: "Faculty", url: "/faculty", icon: GraduationCap },
   ];

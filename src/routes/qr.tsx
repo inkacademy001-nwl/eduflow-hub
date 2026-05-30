@@ -52,6 +52,11 @@ function QRDisplay() {
     return <Navigate to={user?.role === "Faculty" ? "/" : "/dashboard"} replace />;
   }
 
+  return <_QRDisplay />;
+}
+
+function _QRDisplay() {
+
   const [now, setNow] = useState(() => Date.now());
   const [token, setToken] = useState<string>("LOADING...");
   const [tokenStart, setTokenStart] = useState(() => Date.now());
@@ -277,14 +282,14 @@ function QRDisplay() {
             </div>
           </div>
           <div className="mt-6 flex flex-col items-center">
-            <div className="rounded-xl border border-border bg-background p-4">
+            <div className="rounded-xl border border-border bg-white p-4">
               {!isSessionActive || token === "INACTIVE" ? (
-                <div className="flex flex-col gap-2 h-[220px] w-[220px] items-center justify-center border-2 border-dashed border-muted text-sm text-muted-foreground text-center px-4">
+                <div className="flex flex-col gap-2 h-[220px] w-[220px] items-center justify-center border-2 border-dashed border-muted-foreground/30 text-sm text-muted-foreground text-center px-4">
                   <Power className="h-6 w-6 opacity-50" />
                   <span className="font-medium">Attendance session not started</span>
                 </div>
               ) : token === "LOADING..." ? (
-                <div className="flex h-[220px] w-[220px] items-center justify-center border-2 border-dashed border-muted text-sm text-muted-foreground">
+                <div className="flex h-[220px] w-[220px] items-center justify-center border-2 border-dashed border-muted-foreground/30 text-sm text-muted-foreground">
                   Loading...
                 </div>
               ) : token === "ERROR" ? (
@@ -293,7 +298,7 @@ function QRDisplay() {
                   <span className="text-center font-medium opacity-80">Connection lost.<br/>Retrying...</span>
                 </div>
               ) : (
-                <QRCodeSVG value={token} size={220} level="M" />
+                <QRCodeSVG value={token} size={220} level="M" fgColor="#000000" bgColor="#FFFFFF" />
               )}
             </div>
             <p className="mt-4 text-center text-xs text-muted-foreground">
@@ -336,7 +341,7 @@ function QRDisplay() {
                   <div>
                     <p className="text-sm font-medium">{s.facultyName}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(s.timestamp).toLocaleTimeString()}
+                      {new Date(s.timestamp).toLocaleTimeString(undefined, { timeZone: 'UTC', hour: 'numeric', minute: '2-digit', hour12: true })}
                     </p>
                   </div>
                 </div>

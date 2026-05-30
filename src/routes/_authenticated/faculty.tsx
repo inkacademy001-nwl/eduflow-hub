@@ -137,16 +137,16 @@ function FacultyPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-[1400px]">
-      <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+      <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end w-full">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Faculty</h1>
           <p className="text-sm text-muted-foreground">
             {list.length} {tab} faculty
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-3 w-full sm:w-auto">
           {user.role !== "Faculty" && <DeductionConfigForm />}
-          <Button variant="outline" size="sm" onClick={onExportSheets}>
+          <Button variant="outline" size="sm" onClick={onExportSheets} className="w-full sm:w-auto">
             <SheetIcon className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Export to Google Sheets</span>
             <span className="sm:hidden">Export</span>
@@ -321,8 +321,8 @@ function DeductionConfigForm() {
   };
 
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-2 shadow-sm text-sm">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 rounded-xl border border-border bg-card px-4 py-3 sm:py-2 shadow-sm text-sm w-full sm:w-auto">
+      <div className="flex items-center gap-2 w-full sm:w-auto">
         <span className="font-medium">Late:</span>
         <Select
           disabled={!isOwner || saving}
@@ -351,8 +351,8 @@ function DeductionConfigForm() {
           />
         )}
       </div>
-      <div className="h-4 w-px bg-border" />
-      <div className="flex items-center gap-2">
+      <div className="hidden sm:block h-4 w-px bg-border" />
+      <div className="flex items-center gap-2 w-full sm:w-auto">
         <span className="font-medium">Absent:</span>
         <Select
           disabled={!isOwner || saving}
@@ -1131,8 +1131,10 @@ function DetailTable({ dashboard }: { dashboard: FacultyDashboardData | null }) 
             const formatTime = (isoString?: string | null) => {
               if (!isoString) return "-";
               return new Date(isoString).toLocaleTimeString(undefined, {
-                hour: '2-digit',
-                minute: '2-digit'
+                timeZone: 'UTC',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
               });
             };
             return (

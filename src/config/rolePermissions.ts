@@ -7,6 +7,7 @@ export const ROLE_PERMISSIONS = {
     "expenses",
     "revenue",
     "qr",
+    "student-attendance",
   ],
   Coordinator: [
     "dashboard",
@@ -15,6 +16,7 @@ export const ROLE_PERMISSIONS = {
     "admissions",
     "expenses",
     "qr",
+    "student-attendance",
   ],
   Faculty: [
     "faculty-home",

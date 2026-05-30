@@ -74,6 +74,19 @@ function StudentsPage() {
   const [filters, setFilters] = useState<Filter[]>([]);
   const [selected, setSelected] = useState<Student | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [feeStatuses, setFeeStatuses] = useState<Record<string, "Paid" | "Not Paid">>({});
+
+  const updateFeeStatus = async (id: string, status: "Paid" | "Not Paid") => {
+    const previous = feeStatuses[id];
+    setFeeStatuses(prev => ({ ...prev, [id]: status }));
+    try {
+      await studentApi.updateFeeStatusApi(id, status);
+      toast.success("Fee status updated");
+    } catch (error) {
+      setFeeStatuses(prev => ({ ...prev, [id]: previous })); // Revert
+      toast.error("Failed to update fee status");
+    }
+  };
 
   const [all, setAll] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +96,14 @@ function StudentsPage() {
     try {
       const res = await studentApi.fetchStudents(search, 1, 100);
       setAll(res.data);
+      // Initialize fee statuses
+      const initialStatuses: Record<string, "Paid" | "Not Paid"> = {};
+      res.data.forEach(s => {
+        if (s.feeStatus) {
+          initialStatuses[s.id] = s.feeStatus;
+        }
+      });
+      setFeeStatuses(initialStatuses);
     } catch (err: any) {
       toast.error(err.message || "Failed to load students");
     } finally {
@@ -277,16 +298,31 @@ function StudentsPage() {
                   </td>
                   <td className="px-4 py-3">{s.board}</td>
                   <td className="px-4 py-3">{s.primaryPhone}</td>
-                  <td className="px-4 py-3">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex items-center gap-1 text-muted-foreground">
-                          <Lock className="h-3.5 w-3.5" />
-                          Locked
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>Coming Soon</TooltipContent>
-                    </Tooltip>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => updateFeeStatus(s.id, "Paid")}
+                        className={cn(
+                          "rounded-md px-3 py-1 text-xs font-medium border transition-colors",
+                          feeStatuses[s.id] === "Paid"
+                            ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800"
+                            : "bg-transparent text-muted-foreground border-border hover:bg-accent"
+                        )}
+                      >
+                        Paid
+                      </button>
+                      <button
+                        onClick={() => updateFeeStatus(s.id, "Not Paid")}
+                        className={cn(
+                          "rounded-md px-3 py-1 text-xs font-medium border transition-colors",
+                          feeStatuses[s.id] === "Not Paid"
+                            ? "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800"
+                            : "bg-transparent text-muted-foreground border-border hover:bg-accent"
+                        )}
+                      >
+                        Not Paid
+                      </button>
+                    </div>
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-1">
