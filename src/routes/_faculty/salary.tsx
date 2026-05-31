@@ -115,7 +115,7 @@ function FacultyAttendancePage() {
       <div className="mb-5">
         <h1 className="text-xl font-semibold tracking-tight">My Attendance</h1>
         <p className="text-sm text-muted-foreground">
-          {targetDate.toLocaleDateString("en-IN", { month: "long", year: "numeric" })} ·{" "}
+          {targetDate.toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" })} ·{" "}
           {teacher.fullName}
         </p>
       </div>
@@ -134,6 +134,7 @@ function FacultyAttendancePage() {
             {targetDate.toLocaleDateString("en-IN", {
               month: "long",
               year: "numeric",
+              timeZone: "Asia/Kolkata",
             })}
           </span>
           <button
@@ -478,7 +479,7 @@ function DetailTable({
   const formatTime = (isoString?: string | null) => {
     if (!isoString) return "—";
     const date = new Date(isoString);
-    return date.toLocaleTimeString(undefined, { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: false });
+    return date.toLocaleTimeString(undefined, { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
   };
 
   return (
@@ -500,6 +501,7 @@ function DetailTable({
               weekday: "short",
               month: "short",
               day: "numeric",
+              timeZone: "Asia/Kolkata",
             });
             const statusLabel =
               d.status === "PRESENT" ? "Present"

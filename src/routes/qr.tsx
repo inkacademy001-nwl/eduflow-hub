@@ -341,7 +341,7 @@ function _QRDisplay() {
                   <div>
                     <p className="text-sm font-medium">{s.facultyName}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(s.timestamp).toLocaleTimeString(undefined, { timeZone: 'UTC', hour: 'numeric', minute: '2-digit', hour12: true })}
+                      {new Date(s.timestamp).toLocaleTimeString(undefined, { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true })}
                     </p>
                   </div>
                 </div>

@@ -71,6 +71,7 @@ function PayslipPage() {
   const monthYear = targetDate.toLocaleDateString("en-IN", {
     month: "long",
     year: "numeric",
+    timeZone: "Asia/Kolkata",
   });
   const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
   // PDF-safe format: jsPDF default fonts don't have the ₹ glyph
@@ -275,7 +276,7 @@ function PayslipPage() {
       doc.setFont("helvetica", "normal");
 
       doc.text("This is a computer generated document, no signature required.", pw / 2, ph - 20, { align: "center" });
-      doc.text(`Generated on ${targetDate.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}`, pw / 2, ph - 16, { align: "center" });
+      doc.text(`Generated on ${targetDate.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" })}`, pw / 2, ph - 16, { align: "center" });
 
       doc.setFont("helvetica", "bold");
       doc.text("Powered by NeuralWeb Labs", pw / 2, ph - 10, { align: "center" });
@@ -315,6 +316,7 @@ function PayslipPage() {
             {targetDate.toLocaleDateString("en-IN", {
               month: "long",
               year: "numeric",
+              timeZone: "Asia/Kolkata",
             })}
           </span>
           <button

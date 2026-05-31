@@ -924,6 +924,7 @@ function AttendanceCalendar({ dashboard, isHourly }: { dashboard: FacultyDashboa
           {targetDate.toLocaleDateString(undefined, {
             month: "long",
             year: "numeric",
+            timeZone: "Asia/Kolkata",
           })}
         </span>
         <button
@@ -1127,11 +1128,12 @@ function DetailTable({ dashboard }: { dashboard: FacultyDashboardData | null }) 
             const label = d.toLocaleDateString(undefined, {
               month: "short",
               day: "numeric",
+              timeZone: "Asia/Kolkata",
             });
             const formatTime = (isoString?: string | null) => {
               if (!isoString) return "-";
               return new Date(isoString).toLocaleTimeString(undefined, {
-                timeZone: 'UTC',
+                timeZone: 'Asia/Kolkata',
                 hour: 'numeric',
                 minute: '2-digit',
                 hour12: true

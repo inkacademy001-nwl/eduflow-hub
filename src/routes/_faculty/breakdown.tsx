@@ -99,6 +99,7 @@ function BreakdownPage() {
             {targetDate.toLocaleDateString("en-IN", {
               month: "long",
               year: "numeric",
+              timeZone: "Asia/Kolkata",
             })}
           </span>
           <button
