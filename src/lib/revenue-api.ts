@@ -22,7 +22,7 @@ export const revenueApi = {
     return res;
   },
   sendOtp: async () => {
-    const res = await api.post("/api/revenue/forgot-password/send-otp");
+    const res = await api.post("/api/revenue/forgot-password/send-otp", {});
     return res;
   },
   verifyOtp: async (otpCode: string) => {

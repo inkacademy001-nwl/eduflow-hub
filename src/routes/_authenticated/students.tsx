@@ -98,7 +98,7 @@ function StudentsPage() {
       setAll(res.data);
       // Initialize fee statuses
       const initialStatuses: Record<string, "Paid" | "Not Paid"> = {};
-      res.data.forEach(s => {
+      res.data.forEach((s: any) => {
         if (s.feeStatus) {
           initialStatuses[s.id] = s.feeStatus;
         }
