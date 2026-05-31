@@ -1131,7 +1131,7 @@ function DetailTable({ dashboard }: { dashboard: FacultyDashboardData | null }) 
             const formatTime = (isoString?: string | null) => {
               if (!isoString) return "-";
               return new Date(isoString).toLocaleTimeString(undefined, {
-                timeZone: 'UTC',
+                timeZone: 'Asia/Kolkata',
                 hour: 'numeric',
                 minute: '2-digit',
                 hour12: true
