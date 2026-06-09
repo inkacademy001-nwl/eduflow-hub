@@ -182,6 +182,7 @@ function StudentAttendancePage() {
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
+            max={new Date().toISOString().split("T")[0]}
             className="w-[160px] h-9 text-sm"
           />
           <ClassFilterDropdown onSelect={addFilter} />

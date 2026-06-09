@@ -1,5 +1,16 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+const handleResponseError = async (res: Response) => {
+  if (res.status === 401) {
+    localStorage.removeItem("erp_auth_user");
+    localStorage.removeItem("erp_auth_token");
+    window.location.href = "/";
+    throw new Error("Session expired. Please log in again.");
+  }
+  const errorData = await res.json().catch(() => null);
+  throw new Error(errorData?.message || `HTTP error ${res.status}`);
+};
+
 export const api = {
   getHeaders: () => {
     const token = localStorage.getItem("erp_auth_token");
@@ -13,10 +24,7 @@ export const api = {
     const res = await fetch(BASE_URL + url, {
       headers: api.getHeaders(),
     });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => null);
-      throw new Error(errorData?.message || `HTTP error ${res.status}`);
-    }
+    if (!res.ok) await handleResponseError(res);
     return res.json();
   },
 
@@ -26,10 +34,7 @@ export const api = {
       headers: api.getHeaders(),
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => null);
-      throw new Error(errorData?.message || `HTTP error ${res.status}`);
-    }
+    if (!res.ok) await handleResponseError(res);
     return res.json();
   },
 
@@ -39,10 +44,7 @@ export const api = {
       headers: api.getHeaders(),
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => null);
-      throw new Error(errorData?.message || `HTTP error ${res.status}`);
-    }
+    if (!res.ok) await handleResponseError(res);
     return res.json();
   },
 
@@ -52,10 +54,7 @@ export const api = {
       headers: api.getHeaders(),
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => null);
-      throw new Error(errorData?.message || `HTTP error ${res.status}`);
-    }
+    if (!res.ok) await handleResponseError(res);
     return res.json();
   },
 
@@ -65,10 +64,7 @@ export const api = {
       headers: api.getHeaders(),
       body: data ? JSON.stringify(data) : undefined,
     });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => null);
-      throw new Error(errorData?.message || `HTTP error ${res.status}`);
-    }
+    if (!res.ok) await handleResponseError(res);
     return res.json();
   },
 };

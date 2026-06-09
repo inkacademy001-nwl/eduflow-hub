@@ -523,6 +523,10 @@ export function TeacherForm({ initialData }: { initialData?: Teacher }) {
                             <SelectItem value="7:30 PM">7:30 PM</SelectItem>
                             <SelectItem value="7:45 PM">7:45 PM</SelectItem>
                             <SelectItem value="8:00 PM">8:00 PM</SelectItem>
+                            <SelectItem value="8:15 PM">8:15 PM</SelectItem>
+                            <SelectItem value="8:30 PM">8:30 PM</SelectItem>
+                            <SelectItem value="8:45 PM">8:45 PM</SelectItem>
+                            <SelectItem value="9:00 PM">9:00 PM</SelectItem>
                           </SelectContent>
                         </Select>
                       </F>
