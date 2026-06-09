@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_authenticated/admissions/add-student")(
 const BOARDS = ["CBSE", "State Board", "ICSE", "Other"];
 
 const EXTRA_CURRICULAR = [
-  "Chess",
+  "Chess", "NEET", "JEE", "Tally", "Abacus", "Hindi"
 ];
 
 function subjectsForClass(cls: number): string[] {

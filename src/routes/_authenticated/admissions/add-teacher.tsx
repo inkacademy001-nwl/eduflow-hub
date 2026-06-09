@@ -36,6 +36,10 @@ export const Route = createFileRoute("/_authenticated/admissions/add-teacher")(
 /* ── Subject groups (mirrors student class-based concept) ────────────────── */
 const SUBJECT_GROUPS = [
   {
+    label: "Roles",
+    subjects: ["Receptionist"],
+  },
+  {
     label: "Classes 1–8",
     subjects: ["All Subjects", "Maths Only"],
   },
@@ -56,7 +60,7 @@ const SUBJECT_GROUPS = [
   },
 ];
 
-const EXTRA_CURRICULAR = ["Chess"];
+const EXTRA_CURRICULAR = ["Chess", "NEET", "JEE", "Tally", "Abacus", "Hindi"];
 
 /* ── Slide animations (prefixed to avoid collision with add-student) ─────── */
 const ANIM_STYLES = `
@@ -166,10 +170,6 @@ export function TeacherForm({ initialData }: { initialData?: Teacher }) {
     }
     if (subjects.length === 0) {
       toast.error("At least one subject is required");
-      return;
-    }
-    if (classes.length === 0) {
-      toast.error("At least one class is required");
       return;
     }
     setAnimClass("_tf_right");
@@ -510,9 +510,19 @@ export function TeacherForm({ initialData }: { initialData?: Teacher }) {
                             <SelectValue placeholder="Select Time Slot" />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="5:00 PM">5:00 PM</SelectItem>
+                            <SelectItem value="5:15 PM">5:15 PM</SelectItem>
                             <SelectItem value="5:30 PM">5:30 PM</SelectItem>
+                            <SelectItem value="5:45 PM">5:45 PM</SelectItem>
                             <SelectItem value="6:00 PM">6:00 PM</SelectItem>
+                            <SelectItem value="6:15 PM">6:15 PM</SelectItem>
                             <SelectItem value="6:30 PM">6:30 PM</SelectItem>
+                            <SelectItem value="6:45 PM">6:45 PM</SelectItem>
+                            <SelectItem value="7:00 PM">7:00 PM</SelectItem>
+                            <SelectItem value="7:15 PM">7:15 PM</SelectItem>
+                            <SelectItem value="7:30 PM">7:30 PM</SelectItem>
+                            <SelectItem value="7:45 PM">7:45 PM</SelectItem>
+                            <SelectItem value="8:00 PM">8:00 PM</SelectItem>
                           </SelectContent>
                         </Select>
                       </F>
