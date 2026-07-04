@@ -20,6 +20,8 @@ import {
 import {
   Search,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   X,
   Users,
   UserCheck,
@@ -30,7 +32,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getStudentAttendance, updateStudentAttendance, StudentAttendanceRecord } from "@/lib/student-attendance-api";
+import { getStudentAttendance, updateStudentAttendance, StudentAttendanceRecord, getStudentAttendanceCalendar, StudentCalendarResponse } from "@/lib/student-attendance-api";
 
 export const Route = createFileRoute("/_authenticated/student-attendance")({
   component: StudentAttendancePage,
@@ -61,6 +63,7 @@ function StudentAttendancePage() {
   const [students, setStudents] = useState<StudentAttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [selectedStudent, setSelectedStudent] = useState<StudentAttendanceRecord | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -311,11 +314,11 @@ function StudentAttendancePage() {
                       key={s.id}
                       className="border-t border-border transition hover:bg-accent/30"
                     >
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 cursor-pointer" onClick={() => setSelectedStudent(s)}>
                         <div className="flex items-center gap-3">
                           <Avatar name={s.fullName} />
                           <div>
-                            <p className="font-medium">{s.fullName}</p>
+                            <p className="font-medium hover:underline">{s.fullName}</p>
                             <p className="text-xs text-muted-foreground">{s.id}</p>
                           </div>
                         </div>
@@ -380,11 +383,11 @@ function StudentAttendancePage() {
           {filtered.map((s) => {
             return (
               <div key={s.id} className="flex flex-col gap-3 p-4 hover:bg-accent/30">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between cursor-pointer" onClick={() => setSelectedStudent(s)}>
                   <div className="flex items-center gap-3">
                     <Avatar name={s.fullName} />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium">{s.fullName}</p>
+                      <p className="font-medium hover:underline">{s.fullName}</p>
                       <p className="text-xs text-muted-foreground">{s.id}</p>
                     </div>
                   </div>
@@ -445,6 +448,13 @@ function StudentAttendancePage() {
           )}
         </div>
       </div>
+
+      {selectedStudent && (
+        <StudentAttendanceModal 
+          student={selectedStudent} 
+          onClose={() => setSelectedStudent(null)} 
+        />
+      )}
     </div>
   );
 }
@@ -493,5 +503,200 @@ function ClassFilterDropdown({ onSelect }: { onSelect: (cls: number, subject: st
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function StudentAttendanceModal({
+  student,
+  onClose,
+}: {
+  student: StudentAttendanceRecord;
+  onClose: () => void;
+}) {
+  const [calendarData, setCalendarData] = useState<StudentCalendarResponse | null>(null);
+  const [monthOffset, setMonthOffset] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchCalendar = async () => {
+      setLoading(true);
+      try {
+        const now = new Date();
+        const targetDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+        const data = await getStudentAttendanceCalendar(student.dbId, targetDate.getMonth() + 1, targetDate.getFullYear());
+        setCalendarData(data);
+      } catch (err) {
+        toast.error("Failed to load student calendar");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCalendar();
+  }, [student.dbId, monthOffset]);
+
+  const now = new Date();
+  const targetDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const firstDow = targetDate.getDay(); 
+  const DAY_HEADERS = ["S", "M", "T", "W", "T", "F", "S"];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.65)" }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-[420px] max-h-[92vh] overflow-y-auto rounded-3xl p-6"
+        style={{
+          background: "rgba(10, 10, 20, 0.95)",
+          backdropFilter: "blur(28px)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 32px 64px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.08)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-white/40">
+          ATTENDANCE CALENDAR
+        </p>
+
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            onClick={() => setMonthOffset((o) => o - 1)}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/40 transition hover:bg-white/10 hover:text-white"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="text-sm font-semibold text-white/80">
+            {targetDate.toLocaleDateString(undefined, {
+              month: "long",
+              year: "numeric",
+              timeZone: "Asia/Kolkata",
+            })}
+          </span>
+          <button
+            onClick={() => setMonthOffset((o) => Math.min(0, o + 1))}
+            disabled={monthOffset >= 0}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/40 transition hover:bg-white/10 hover:text-white disabled:opacity-25"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Day-of-week headers */}
+        <div className="mb-2 grid grid-cols-7">
+          {DAY_HEADERS.map((d, i) => (
+            <div
+              key={i}
+              className="py-1 text-center text-xs font-bold tracking-wide text-white/25"
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7 gap-y-2">
+          {Array.from({ length: firstDow }).map((_, i) => (
+            <div key={`pad-${i}`} />
+          ))}
+
+          {Array.from({ length: new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate() }).map((_, i) => {
+            let status = "EMPTY";
+            if (calendarData) {
+              const record = calendarData.data.find(d => d.day === i + 1);
+              if (record) status = record.status || "EMPTY";
+            }
+
+            return <StudentCalendarDay key={i} day={i + 1} status={status} />;
+          })}
+        </div>
+
+        {/* Legend */}
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-white/6 pt-4 text-[11px] text-white/40">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border-2 border-blue-400 bg-blue-400/15">
+              <Check className="h-2.5 w-2.5 text-blue-400" strokeWidth={3.5} />
+            </span>
+            Present
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-red-400" />
+            Absent
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border-2 border-yellow-400 bg-yellow-400/15">
+              <Check className="h-2.5 w-2.5 text-yellow-400" strokeWidth={3.5} />
+            </span>
+            Late
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm bg-violet-500/60" />
+            Holiday
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StudentCalendarDay({ day, status }: { day: number; status: string }) {
+  if (status === "EMPTY") {
+    return (
+      <div className="flex flex-col items-center py-1">
+        <span className="text-xs text-white/15">{day}</span>
+      </div>
+    );
+  }
+
+  if (status === "PRESENT") {
+    return (
+      <div className="flex flex-col items-center py-1">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-blue-400 bg-blue-400/15">
+          <Check className="h-3.5 w-3.5 text-blue-400" strokeWidth={3.5} />
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "ABSENT") {
+    return (
+      <div className="flex flex-col items-center py-1">
+        <span className="text-xs text-white/45">{day}</span>
+        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-red-400" />
+      </div>
+    );
+  }
+
+  if (status === "LATE") {
+    return (
+      <div className="flex flex-col items-center py-1">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-yellow-400 bg-yellow-400/15">
+          <Check className="h-3.5 w-3.5 text-yellow-400" strokeWidth={3.5} />
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "HOLIDAY") {
+    return (
+      <div className="flex flex-col items-center py-1">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/25">
+          <span className="text-xs font-semibold text-violet-300">{day}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center py-1">
+      <span className="text-xs text-white/15">{day}</span>
+    </div>
   );
 }

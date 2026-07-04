@@ -45,3 +45,26 @@ export const updateStudentAttendance = async (date: string, records: UpdateAtten
   }
   return response.json();
 };
+
+export interface StudentCalendarRecord {
+  day: number;
+  date: string;
+  status: "PRESENT" | "ABSENT" | "LATE" | "HOLIDAY" | "EMPTY" | null;
+}
+
+export interface StudentCalendarResponse {
+  studentId: number;
+  month: number;
+  year: number;
+  data: StudentCalendarRecord[];
+}
+
+export const getStudentAttendanceCalendar = async (studentId: number, month: number, year: number): Promise<StudentCalendarResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/student-attendance/calendar?studentId=${studentId}&month=${month}&year=${year}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch student attendance calendar");
+  }
+  return response.json();
+};

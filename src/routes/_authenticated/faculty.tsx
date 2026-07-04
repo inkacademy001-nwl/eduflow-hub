@@ -32,6 +32,7 @@ import {
   ChevronUp,
   Check,
   Calculator,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -47,6 +48,7 @@ function FacultyPage() {
 
   const [tab, setTab] = useState<"daily" | "hourly">("daily");
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+  const [selectedFacultyDetails, setSelectedFacultyDetails] = useState<Teacher | null>(null);
   const [all, setAll] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [finalizingSalaries, setFinalizingSalaries] = useState(false);
@@ -221,12 +223,13 @@ function FacultyPage() {
           No {tab} faculty found on this page.
         </div>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {list.map((t) => (
-            <FacultyCard
-              key={t.id}
-              teacher={t}
-              onClick={() => setSelectedTeacher(t)}
+            <FacultyCard 
+              key={t.id} 
+              teacher={t} 
+              onClick={() => setSelectedTeacher(t)} 
+              onViewDetails={() => setSelectedFacultyDetails(t)}
             />
           ))}
         </div>
@@ -263,10 +266,14 @@ function FacultyPage() {
         <FacultyModal
           teacher={selectedTeacher}
           onClose={() => setSelectedTeacher(null)}
-          onChange={() => {
-            refresh();
-            setSelectedTeacher(null);
-          }}
+          onRefresh={refresh}
+        />
+      )}
+
+      {selectedFacultyDetails && (
+        <FacultyDetailsModal
+          teacher={selectedFacultyDetails}
+          onClose={() => setSelectedFacultyDetails(null)}
         />
       )}
     </div>
@@ -385,13 +392,14 @@ function DeductionConfigForm() {
   );
 }
 
-/* ─── Faculty Card (click to open modal) ─────────────────────────────────── */
 function FacultyCard({
   teacher,
   onClick,
+  onViewDetails,
 }: {
   teacher: Teacher;
   onClick: () => void;
+  onViewDetails: () => void;
 }) {
   const present = teacher.attendanceStats?.present || 0;
   const absent = teacher.attendanceStats?.absent || 0;
@@ -422,9 +430,22 @@ function FacultyCard({
               {teacher.id}{teacher.timeSlot ? ` • ${teacher.timeSlot}` : ""}
             </p>
           </div>
-          <span className="text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100">
-            View →
-          </span>
+          <div className="flex items-center gap-2 opacity-0 transition group-hover:opacity-100">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewDetails();
+              }}
+              className="p-1 rounded-full hover:bg-primary/10 text-primary transition-colors"
+              title="View Details"
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+            <span className="text-xs font-medium text-primary">
+              View →
+            </span>
+          </div>
         </div>
       </div>
 
@@ -460,24 +481,27 @@ function FacultyModal({
   const [bonus, setBonus] = useState<number>(0);
   const [showDetail, setShowDetail] = useState(false);
   const [dashboard, setDashboard] = useState<FacultyDashboardData | null>(null);
+  const [monthOffset, setMonthOffset] = useState(0);
 
   useEffect(() => {
     const now = new Date();
-    facultyApi.fetchFacultyDashboard(teacher.id, now.getMonth() + 1, now.getFullYear())
+    const targetDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+    facultyApi.fetchFacultyDashboard(teacher.id, targetDate.getMonth() + 1, targetDate.getFullYear())
       .then((data) => {
         setDashboard(data);
         setBonus(data.salary?.bonus || 0);
         setDeductions(data.salary?.deductions || 0);
       })
       .catch(() => toast.error("Failed to load dashboard"));
-  }, [teacher.id]);
+  }, [teacher.id, monthOffset]);
 
   const handleSaveSalary = async () => {
     const now = new Date();
+    const targetDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
     try {
       const res = await facultyApi.updateFacultySalary(teacher.id, {
-        month: now.getMonth() + 1,
-        year: now.getFullYear(),
+        month: targetDate.getMonth() + 1,
+        year: targetDate.getFullYear(),
         bonus,
         deductions
       });
@@ -699,7 +723,7 @@ function FacultyModal({
 
               {/* Col 3 – Attendance calendar */}
               <GlassPanel title="Attendance Calendar">
-                <AttendanceCalendar dashboard={dashboard} isHourly={!isDaily} />
+                <AttendanceCalendar dashboard={dashboard} isHourly={!isDaily} offset={monthOffset} setOffset={setMonthOffset} />
               </GlassPanel>
             </div>
           ) : (
@@ -796,7 +820,7 @@ function FacultyModal({
 
               {/* Col 3 – Attendance calendar */}
               <GlassPanel title="Attendance Calendar">
-                <AttendanceCalendar dashboard={dashboard} isHourly={!isDaily} />
+                <AttendanceCalendar dashboard={dashboard} isHourly={!isDaily} offset={monthOffset} setOffset={setMonthOffset} />
               </GlassPanel>
             </div>
           )}
@@ -900,11 +924,9 @@ function SalaryItem({
 }
 
 /* ─── Attendance Calendar (replicating reference image) ─────────────────── */
-function AttendanceCalendar({ dashboard, isHourly }: { dashboard: FacultyDashboardData | null, isHourly: boolean }) {
+function AttendanceCalendar({ dashboard, isHourly, offset, setOffset }: { dashboard: FacultyDashboardData | null, isHourly: boolean, offset: number, setOffset: React.Dispatch<React.SetStateAction<number>> }) {
   const now = new Date();
-  const [offset, setOffset] = useState(0);
   const targetDate = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-  const isCurrentMonth = offset === 0;
 
   // Day-of-week offset so the 1st lands on the correct column
   const firstDow = targetDate.getDay(); // 0=Sun … 6=Sat
@@ -960,7 +982,7 @@ function AttendanceCalendar({ dashboard, isHourly }: { dashboard: FacultyDashboa
           const dayStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`;
           let status = null;
           let totalHours = null;
-          if (isCurrentMonth && dashboard) {
+          if (dashboard) {
             const record = dashboard.calendar.find(c => c.date === dayStr);
             status = record?.status ? record.status : "none";
             totalHours = record?.totalHours;
@@ -1152,6 +1174,97 @@ function DetailTable({ dashboard }: { dashboard: FacultyDashboardData | null }) 
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/* ─── Faculty Details Modal ─────────────────────────────────────────────────── */
+function FacultyDetailsModal({ teacher, onClose }: { teacher: Teacher; onClose: () => void }) {
+  // Lock body scroll
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-background/80 backdrop-blur-sm" 
+        onClick={onClose} 
+      />
+
+      {/* Modal */}
+      <div className="relative w-full max-w-lg rounded-2xl border border-border bg-card/95 p-6 shadow-2xl backdrop-blur max-h-[90vh] overflow-y-auto">
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-full p-2 hover:bg-white/10 transition-colors"
+        >
+          <X className="h-5 w-5 text-muted-foreground" />
+        </button>
+
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold uppercase tracking-wider">{teacher.fullName}</h2>
+          <p className="text-sm text-muted-foreground">{teacher.id}</p>
+        </div>
+
+        <div className="space-y-4 text-sm">
+          <DetailRow label="Designation" value={teacher.designation || "Teacher"} />
+          <DetailRow label="Gender" value={teacher.gender || "—"} />
+          <DetailRow label="Date of Birth" value={teacher.dob || "—"} />
+          <DetailRow label="Phone" value={teacher.phone || "—"} />
+          <DetailRow label="Email" value={teacher.email || "—"} />
+          <DetailRow label="Address" value={teacher.address || "—"} />
+          <DetailRow label="Qualification" value={teacher.qualification || "—"} />
+          <DetailRow 
+            label="Subjects" 
+            value={
+              teacher.subjects && teacher.subjects.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {teacher.subjects.map(s => (
+                    <span key={s} className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-medium">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              ) : "—"
+            } 
+          />
+          <DetailRow 
+            label="Classes" 
+            value={teacher.classes && teacher.classes.length > 0 ? teacher.classes.join(", ") : "—"} 
+          />
+          <DetailRow label="Salary Type" value={teacher.salaryType === "daily" ? "Daily Based" : "Hourly Based"} />
+          <DetailRow 
+            label={teacher.salaryType === "daily" ? "Monthly Salary" : "Hourly Rate"} 
+            value={
+              teacher.salaryType === "daily" 
+                ? (teacher.monthlySalary ? `₹${teacher.monthlySalary}` : "—")
+                : (teacher.hourlyRate ? `₹${teacher.hourlyRate}` : "—")
+            } 
+          />
+          <DetailRow label="Joining Date" value={teacher.joiningDate || "—"} />
+          {teacher.emergencyName || teacher.emergencyPhone ? (
+            <DetailRow 
+              label="Emergency Contact" 
+              value={`${teacher.emergencyName || "—"} ${teacher.emergencyPhone ? `(${teacher.emergencyPhone})` : ""}`} 
+            />
+          ) : (
+             <DetailRow label="Emergency Contact" value="—" />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex py-2 border-b border-border/50 last:border-0">
+      <span className="w-1/3 text-muted-foreground font-medium">{label}</span>
+      <span className="w-2/3 font-medium text-foreground">{value}</span>
     </div>
   );
 }
